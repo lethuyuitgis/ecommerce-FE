@@ -68,21 +68,23 @@ export function CategorySection() {
     <section className="border-b bg-white">
       <div className="container mx-auto px-4 py-6">
         <h2 className="mb-4 text-lg font-semibold text-foreground">DANH MỤC</h2>
-        <div className="grid grid-cols-5 gap-4 md:grid-cols-10">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5">
           {categories.map((category) => (
             <Link
               key={category.id}
               href={category.href}
-              className="flex flex-col items-center gap-2 rounded-lg p-2 transition-colors hover:bg-muted"
+              className="group relative overflow-hidden rounded-lg transition-transform hover:scale-105"
             >
-              <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary/20 bg-primary/5">
+              <div className="relative aspect-video w-full overflow-hidden bg-muted">
                 <img
                   src={category.icon || "/placeholder.svg"}
                   alt={category.name}
-                  className="h-10 w-10 object-contain"
+                  className="h-full w-full object-cover transition-transform group-hover:scale-110"
                 />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/40">
+                  <span className="text-center text-sm font-semibold text-white drop-shadow-lg">{category.name}</span>
+                </div>
               </div>
-              <span className="text-center text-xs text-foreground">{category.name}</span>
             </Link>
           ))}
         </div>
