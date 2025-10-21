@@ -1,8 +1,8 @@
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { ProductDetail } from "@/components/product-detail"
-import { ProductReviews } from "@/components/product-reviews"
-import { RelatedProducts } from "@/components/related-products"
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
+import { ProductDetail } from "@/components/product/product-detail"
+import { ProductReviews } from "@/components/product/product-reviews"
+import { RelatedProducts } from "@/components/product/related-products"
 import { featuredProducts } from "@/lib/products"
 import { notFound } from "next/navigation"
 

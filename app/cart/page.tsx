@@ -1,7 +1,7 @@
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { CartItems } from "@/components/cart-items"
-import { CartSummary } from "@/components/cart-summary"
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
+import { CartItems } from "@/components/cart/cart-items"
+import { CartSummary } from "@/components/cart/cart-summary"
 
 export default function CartPage() {
   return (

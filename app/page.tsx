@@ -1,10 +1,10 @@
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { ProductCard } from "@/components/product-card"
-import { CategorySection } from "@/components/category-section"
-import { FlashSaleSection } from "@/components/flash-sale-section"
-import { BannerCarousel } from "@/components/banner-carousel"
-import { DownloadAppSection } from "@/components/download-app-section"
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
+import { ProductCard } from "@/components/product/product-card"
+import { CategorySection } from "@/components/home/category-section"
+import { FlashSaleSection } from "@/components/home/flash-sale-section"
+import { BannerCarousel } from "@/components/home/banner-carousel"
+import { DownloadAppSection } from "@/components/home/download-app-section"
 import { featuredProducts } from "@/lib/products"
 
 export default function HomePage() {

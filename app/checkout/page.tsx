@@ -1,7 +1,7 @@
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { CheckoutForm } from "@/components/checkout-form"
-import { CheckoutSummary } from "@/components/checkout-summary"
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
+import { CheckoutForm } from "@/components/checkout/checkout-form"
+import { CheckoutSummary } from "@/components/checkout/checkout-summary"
 
 export default function CheckoutPage() {
   return (

@@ -1,7 +1,7 @@
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { ProfileSidebar } from "@/components/profile-sidebar"
-import { OrdersList } from "@/components/orders-list"
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
+import { ProfileSidebar } from "@/components/profile/profile-sidebar"
+import { OrdersList } from "@/components/orders/orders-list"
 
 export default function OrdersPage() {
   return (

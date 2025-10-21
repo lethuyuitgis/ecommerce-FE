@@ -1,7 +1,7 @@
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { ProfileSidebar } from "@/components/profile-sidebar"
-import { ProfileInfo } from "@/components/profile-info"
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
+import { ProfileSidebar } from "@/components/profile/profile-sidebar"
+import { ProfileInfo } from "@/components/profile/profile-info"
 
 export default function ProfilePage() {
   return (

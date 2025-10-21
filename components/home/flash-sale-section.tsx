@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ProductCard } from "@/components/product-card"
+import { ProductCard } from "@/components/product/product-card"
 import { featuredProducts } from "@/lib/products"
 import { ChevronRight } from "lucide-react"
 import Link from "next/link"
