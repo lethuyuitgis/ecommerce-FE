@@ -1,0 +1,74 @@
+[
+  {
+    "id": "1",
+    "name": "Điện thoại & Phụ kiện",
+    "slug": "dien-thoai-phu-kien",
+    "icon": "Smartphone",
+    "image": "/category-phone.jpg",
+    "description": "Điện thoại, tai nghe, sạc và các phụ kiện công nghệ"
+  },
+  {
+    "id": "2",
+    "name": "Thời trang",
+    "slug": "thoi-trang",
+    "icon": "Shirt",
+    "image": "/category-women-fashion.jpg",
+    "description": "Quần áo, giày dép, phụ kiện thời trang"
+  },
+  {
+    "id": "3",
+    "name": "Làm đẹp",
+    "slug": "lam-dep",
+    "icon": "Sparkles",
+    "image": "/category-beauty.jpg",
+    "description": "Mỹ phẩm, skincare, nước hoa"
+  },
+  {
+    "id": "4",
+    "name": "Đồ gia dụng",
+    "slug": "do-gia-dung",
+    "icon": "Home",
+    "image": "/category-home.jpg",
+    "description": "Đồ dùng nhà bếp, nội thất, trang trí"
+  },
+  {
+    "id": "5",
+    "name": "Thực phẩm",
+    "slug": "thuc-pham",
+    "icon": "Apple",
+    "image": "/category-food.jpg",
+    "description": "Thực phẩm tươi, đồ uống, đặc sản"
+  },
+  {
+    "id": "6",
+    "name": "Sách & Văn phòng phẩm",
+    "slug": "sach-van-phong-pham",
+    "icon": "BookOpen",
+    "image": "/category-books.jpg",
+    "description": "Sách, tập, bút, dụng cụ học tập"
+  },
+  {
+    "id": "7",
+    "name": "Thể thao",
+    "slug": "the-thao",
+    "icon": "Activity",
+    "image": "/category-sports.jpg",
+    "description": "Quần áo thể thao, giày, dụng cụ tập luyện"
+  },
+  {
+    "id": "8",
+    "name": "Đồ chơi",
+    "slug": "do-choi",
+    "icon": "Gamepad2",
+    "image": "/category-toys.jpg",
+    "description": "Đồ chơi trẻ em, board game, mô hình"
+  },
+  {
+    "id": "9",
+    "name": "Điện tử",
+    "slug": "dien-tu",
+    "icon": "Zap",
+    "image": "/category-electronics.jpg",
+    "description": "Laptop, máy tính, thiết bị điện tử"
+  }
+]

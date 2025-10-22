@@ -1,0 +1,47 @@
+[
+  {
+    "id": "seller-1",
+    "email": "seller1@shopcuathuy.com",
+    "name": "Shop Điện Thoại Chính Hãng",
+    "phone": "0912345678",
+    "avatar": "/seller-avatar-1.jpg",
+    "shopName": "Shop Điện Thoại Chính Hãng",
+    "description": "Chuyên bán điện thoại, phụ kiện chính hãng",
+    "address": "123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh",
+    "rating": 4.9,
+    "followers": 15234,
+    "products": 45,
+    "createdAt": "2023-06-15",
+    "verified": true
+  },
+  {
+    "id": "seller-2",
+    "email": "seller2@shopcuathuy.com",
+    "name": "Fashion Store VN",
+    "phone": "0987654321",
+    "avatar": "/seller-avatar-2.jpg",
+    "shopName": "Fashion Store VN",
+    "description": "Thời trang nam nữ, giày dép, phụ kiện",
+    "address": "456 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh",
+    "rating": 4.8,
+    "followers": 12456,
+    "products": 320,
+    "createdAt": "2023-08-20",
+    "verified": true
+  },
+  {
+    "id": "seller-3",
+    "email": "seller3@shopcuathuy.com",
+    "name": "Beauty & Cosmetics",
+    "phone": "0901234567",
+    "avatar": "/seller-avatar-3.jpg",
+    "shopName": "Beauty & Cosmetics",
+    "description": "Mỹ phẩm, skincare, nước hoa chính hãng",
+    "address": "789 Đường Trần Hưng Đạo, Hà Nội",
+    "rating": 4.7,
+    "followers": 8934,
+    "products": 156,
+    "createdAt": "2023-09-10",
+    "verified": true
+  }
+]

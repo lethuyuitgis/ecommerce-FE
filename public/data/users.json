@@ -1,0 +1,32 @@
+[
+  {
+    "id": "user-1",
+    "email": "customer1@example.com",
+    "name": "Nguyễn Văn A",
+    "phone": "0912345678",
+    "avatar": "/user-avatar-1.jpg",
+    "address": "123 Đường Lê Lợi, Quận 1, TP. Hồ Chí Minh",
+    "createdAt": "2024-01-15",
+    "role": "customer"
+  },
+  {
+    "id": "user-2",
+    "email": "customer2@example.com",
+    "name": "Trần Thị B",
+    "phone": "0987654321",
+    "avatar": "/user-avatar-2.jpg",
+    "address": "456 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh",
+    "createdAt": "2024-02-20",
+    "role": "customer"
+  },
+  {
+    "id": "user-3",
+    "email": "customer3@example.com",
+    "name": "Lê Văn C",
+    "phone": "0901234567",
+    "avatar": "/user-avatar-3.jpg",
+    "address": "789 Đường Trần Hưng Đạo, Hà Nội",
+    "createdAt": "2024-03-10",
+    "role": "customer"
+  }
+]
