@@ -73,7 +73,7 @@ export function Footer() {
 
       {/* Main Footer Content */}
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* Customer Service */}
           <div>
             <h3 className="mb-4 font-semibold text-sm">CHĂM SÓC KHÁCH HÀNG</h3>
@@ -176,27 +176,6 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
-
-          {/* Download App */}
-          <div>
-            <h3 className="mb-4 font-semibold text-sm">TẢI ỨNG DỤNG</h3>
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">Quét mã QR hoặc tải từ cửa hàng ứng dụng</p>
-              <div className="flex gap-3">
-                <div className="h-20 w-20 rounded border bg-white p-1 flex items-center justify-center">
-                  <div className="text-xs text-center">QR Code</div>
-                </div>
-                <div className="flex flex-col gap-2 justify-center">
-                  <button className="text-xs bg-primary text-primary-foreground px-3 py-2 rounded hover:opacity-90 transition">
-                    App Store
-                  </button>
-                  <button className="text-xs bg-primary text-primary-foreground px-3 py-2 rounded hover:opacity-90 transition">
-                    Google Play
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Contact Info */}

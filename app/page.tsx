@@ -4,7 +4,6 @@ import { ProductCard } from "@/components/product/product-card"
 import { CategorySection } from "@/components/home/category-section"
 import { FlashSaleSection } from "@/components/home/flash-sale-section"
 import { BannerCarousel } from "@/components/home/banner-carousel"
-import { DownloadAppSection } from "@/components/home/download-app-section"
 import { featuredProducts } from "@/lib/products"
 
 export default function HomePage() {
@@ -38,8 +37,6 @@ export default function HomePage() {
             </button>
           </div>
         </section>
-
-        <DownloadAppSection />
       </main>
       <Footer />
     </div>
