@@ -33,19 +33,13 @@ Sử dụng các file JSON này để tạo script import vào MySQL hoặc sử
 
 Có thể import các file JSON này trong frontend để sử dụng làm mock data khi phát triển.
 
-```typescript
+\`\`\`typescript
 import users from '@/public/data/users.json'
 import products from '@/public/data/products.json'
-```
+\`\`\`
 
 ## Lưu ý
 
 - Tất cả UUID đều dùng định dạng `CHAR(36)` trong database
 - Password đã được hash bằng BCrypt
 - Foreign keys đã được liên kết đúng với các bảng liên quan
-
-
-
-
-
-

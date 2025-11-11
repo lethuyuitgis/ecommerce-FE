@@ -92,10 +92,3 @@ export function useCart() {
     refreshCart: fetchCart,
   }
 }
-
-
-
-
-
-
-

@@ -83,10 +83,3 @@ export const productsApi = {
     })
   },
 }
-
-
-
-
-
-
-

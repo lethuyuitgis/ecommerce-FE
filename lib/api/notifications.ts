@@ -47,9 +47,3 @@ export const notificationsApi = {
     })
   },
 }
-
-
-
-
-
-

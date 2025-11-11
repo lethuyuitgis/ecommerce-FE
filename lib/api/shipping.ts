@@ -14,4 +14,3 @@ export const shippingApi = {
     return apiClient<ShippingMethod[]>('/shipping-methods')
   },
 }
-

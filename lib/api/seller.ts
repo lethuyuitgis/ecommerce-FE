@@ -196,5 +196,3 @@ export const sellerApi = {
     return data
   },
 }
-
-

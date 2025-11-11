@@ -1,4 +1,3 @@
-
 import { CreatePromotionDialog } from "@/components/seller/create-promotion-dialog"
 import { CreateVoucherDialog } from "@/components/seller/create-voucher-dialog"
 import { PromotionsTable } from "@/components/seller/promotions-table"

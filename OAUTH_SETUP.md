@@ -23,9 +23,9 @@
 
 Tạo file `.env.local` trong thư mục root của project:
 
-```env
+\`\`\`env
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id-here
-```
+\`\`\`
 
 ## 2. Cấu hình Facebook OAuth
 
@@ -75,30 +75,30 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id-here
 
 Thêm vào file `.env.local`:
 
-```env
+\`\`\`env
 NEXT_PUBLIC_FACEBOOK_APP_ID=your-facebook-app-id-here
-```
+\`\`\`
 
 ## 3. Cấu hình Backend
 
 Thêm vào file `e-commerce-backend/src/main/resources/application.yml`:
 
-```yaml
+\`\`\`yaml
 oauth:
   google:
     client-id: ${GOOGLE_CLIENT_ID:}
   facebook:
     app-id: ${FACEBOOK_APP_ID:}
     app-secret: ${FACEBOOK_APP_SECRET:}
-```
+\`\`\`
 
 Và thêm vào file `.env` của backend (hoặc set environment variables):
 
-```env
+\`\`\`env
 GOOGLE_CLIENT_ID=your-google-client-id-here
 FACEBOOK_APP_ID=your-facebook-app-id-here
 FACEBOOK_APP_SECRET=your-facebook-app-secret-here
-```
+\`\`\`
 
 ## 4. Lưu ý quan trọng
 
@@ -125,10 +125,10 @@ FACEBOOK_APP_SECRET=your-facebook-app-secret-here
 1. Kiểm tra console browser có lỗi gì không
 2. Kiểm tra Network tab xem có request đến Google/Facebook không
 3. Kiểm tra environment variables đã được load đúng chưa:
-   ```javascript
+   \`\`\`javascript
    console.log('Google Client ID:', process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID)
    console.log('Facebook App ID:', process.env.NEXT_PUBLIC_FACEBOOK_APP_ID)
-   ```
+   \`\`\`
 
 4. Kiểm tra Facebook Data Deletion endpoint:
    - Mở browser và truy cập: `http://localhost:8080/api/facebook/data-deletion`
@@ -155,4 +155,3 @@ FACEBOOK_APP_SECRET=your-facebook-app-secret-here
   5. Endpoint đã được tạo sẵn trong `FacebookDataDeletionController.java`
   
   **Lưu ý**: Bạn chỉ cần sử dụng một trong hai cách trên, không cần cả hai
-
