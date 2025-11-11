@@ -1,16 +1,44 @@
+'use client'
+
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { ProductDetail } from "@/components/product/product-detail"
 import { ProductReviews } from "@/components/product/product-reviews"
 import { RelatedProducts } from "@/components/product/related-products"
-import { featuredProducts } from "@/lib/products"
+import { useProduct } from "@/hooks/useProducts"
 import { notFound } from "next/navigation"
 
 export default function ProductPage({ params }: { params: { id: string } }) {
-  const product = featuredProducts.find((p) => p.id === params.id)
+  const { product, loading, error } = useProduct(params.id)
 
-  if (!product) {
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="bg-muted/30">
+          <div className="container mx-auto px-4 py-6">
+            <div className="text-center py-12">Đang tải sản phẩm...</div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (error || !product) {
     notFound()
+  }
+
+  // Transform API product to component format
+  const transformedProduct = {
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    originalPrice: product.comparePrice,
+    image: product.primaryImage || product.images?.[0] || '/placeholder.svg',
+    rating: product.rating || 0,
+    sold: product.totalSold || 0,
+    category: product.categoryName,
   }
 
   return (
@@ -20,55 +48,54 @@ export default function ProductPage({ params }: { params: { id: string } }) {
         <div className="container mx-auto px-4 py-6">
           {/* Breadcrumb */}
           <div className="mb-4 text-sm text-muted-foreground">
-            <span className="hover:text-primary">Trang chủ</span>
+            <span className="hover:text-primary cursor-pointer">Trang chủ</span>
             <span className="mx-2">/</span>
-            <span className="hover:text-primary">Danh mục</span>
+            <span className="hover:text-primary cursor-pointer">{product.categoryName || 'Danh mục'}</span>
             <span className="mx-2">/</span>
             <span className="text-foreground">{product.name}</span>
           </div>
 
           {/* Product Detail */}
-          <ProductDetail product={product} />
+          <ProductDetail product={transformedProduct} />
 
           {/* Product Description */}
           <div className="mt-6 rounded-lg bg-white p-6">
             <h2 className="mb-4 text-xl font-semibold">CHI TIẾT SẢN PHẨM</h2>
             <div className="grid grid-cols-2 gap-4 text-sm">
+              {product.categoryName && (
+                <div className="flex">
+                  <span className="w-32 text-muted-foreground">Danh Mục</span>
+                  <span className="text-foreground">{product.categoryName}</span>
+                </div>
+              )}
+              {product.sellerName && (
+                <div className="flex">
+                  <span className="w-32 text-muted-foreground">Người Bán</span>
+                  <span className="text-foreground">{product.sellerName}</span>
+                </div>
+              )}
+              {product.sku && (
+                <div className="flex">
+                  <span className="w-32 text-muted-foreground">SKU</span>
+                  <span className="text-foreground">{product.sku}</span>
+                </div>
+              )}
               <div className="flex">
-                <span className="w-32 text-muted-foreground">Danh Mục</span>
-                <span className="text-foreground">Thời Trang Nam</span>
-              </div>
-              <div className="flex">
-                <span className="w-32 text-muted-foreground">Thương Hiệu</span>
-                <span className="text-foreground">No Brand</span>
-              </div>
-              <div className="flex">
-                <span className="w-32 text-muted-foreground">Xuất Xứ</span>
-                <span className="text-foreground">Việt Nam</span>
-              </div>
-              <div className="flex">
-                <span className="w-32 text-muted-foreground">Chất Liệu</span>
-                <span className="text-foreground">Cotton 100%</span>
+                <span className="w-32 text-muted-foreground">Số Lượng</span>
+                <span className="text-foreground">{product.quantity} sản phẩm</span>
               </div>
             </div>
           </div>
 
           {/* Product Description Content */}
-          <div className="mt-6 rounded-lg bg-white p-6">
-            <h2 className="mb-4 text-xl font-semibold">MÔ TẢ SẢN PHẨM</h2>
-            <div className="prose max-w-none text-sm text-muted-foreground">
-              <p className="mb-4">
-                Sản phẩm chất lượng cao, được làm từ nguyên liệu tốt nhất. Thiết kế hiện đại, phù hợp với mọi lứa tuổi.
-              </p>
-              <p className="mb-4">Đặc điểm nổi bật:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Chất liệu cao cấp, bền đẹp</li>
-                <li>Thiết kế thời trang, hiện đại</li>
-                <li>Dễ dàng phối đồ</li>
-                <li>Giá cả phải chăng</li>
-              </ul>
+          {product.description && (
+            <div className="mt-6 rounded-lg bg-white p-6">
+              <h2 className="mb-4 text-xl font-semibold">MÔ TẢ SẢN PHẨM</h2>
+              <div className="prose max-w-none text-sm text-muted-foreground">
+                <div dangerouslySetInnerHTML={{ __html: product.description }} />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Reviews */}
           <ProductReviews productId={product.id} />

@@ -1,16 +1,16 @@
+import { OrdersTable } from "@/components/orders/orders-table"
+import { SellerSidebar } from "@/components/seller/seller-sidebar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { SellerSidebar } from "@/components/seller-sidebar"
-import { OrdersTable } from "@/components/orders-table"
 import { Search, Download } from "lucide-react"
 
 export default function SellerOrdersPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1">
         <div className="p-6 lg:p-8">
           {/* Header */}
           <div className="mb-6">

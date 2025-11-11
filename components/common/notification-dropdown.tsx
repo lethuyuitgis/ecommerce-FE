@@ -2,98 +2,102 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Bell, Package, Tag, TrendingUp, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-
-interface Notification {
-  id: string
-  type: "order" | "promotion" | "system"
-  title: string
-  message: string
-  time: string
-  read: boolean
-  link?: string
-  image?: string
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "order",
-    title: "Đơn hàng đã được giao",
-    message: "Đơn hàng #DH123456 đã được giao thành công",
-    time: "5 phút trước",
-    read: false,
-    link: "/orders/DH123456",
-  },
-  {
-    id: "2",
-    type: "promotion",
-    title: "Flash Sale 12.12",
-    message: "Giảm đến 50% cho hàng ngàn sản phẩm. Nhanh tay đặt hàng!",
-    time: "1 giờ trước",
-    read: false,
-    link: "/flash-sales",
-  },
-  {
-    id: "3",
-    type: "order",
-    title: "Đơn hàng đang được vận chuyển",
-    message: "Đơn hàng #DH123455 đang trên đường giao đến bạn",
-    time: "2 giờ trước",
-    read: true,
-    link: "/orders/DH123455",
-  },
-  {
-    id: "4",
-    type: "system",
-    title: "Cập nhật chính sách",
-    message: "Chính sách đổi trả hàng đã được cập nhật",
-    time: "1 ngày trước",
-    read: true,
-    link: "/return-policy",
-  },
-  {
-    id: "5",
-    type: "promotion",
-    title: "Mã giảm giá mới",
-    message: "Bạn có 1 mã giảm giá 100.000đ. Sử dụng ngay!",
-    time: "2 ngày trước",
-    read: true,
-    link: "/vouchers",
-  },
-]
+import { notificationsApi, Notification } from "@/lib/api/notifications"
+import { useAuth } from "@/contexts/AuthContext"
+import { toast } from "sonner"
 
 export function NotificationDropdown() {
-  const [notifications, setNotifications] = useState(mockNotifications)
+  const { isAuthenticated } = useAuth()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
 
-  const unreadCount = notifications.filter((n) => !n.read).length
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchNotifications()
+      fetchUnreadCount()
+    }
+  }, [isAuthenticated])
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true)
+      const response = await notificationsApi.getNotifications(0, 20)
+      if (response.success && response.data) {
+        setNotifications(response.data.content)
+      }
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await notificationsApi.getUnreadCount()
+      if (response.success && response.data !== undefined) {
+        setUnreadCount(response.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch unread count:', error)
+    }
   }
 
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  const markAsRead = async (id: string) => {
+    try {
+      const response = await notificationsApi.markAsRead(id)
+      if (response.success) {
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
+        setUnreadCount((prev) => Math.max(0, prev - 1))
+      }
+    } catch (error) {
+      toast.error("Đánh dấu đã đọc thất bại")
+    }
+  }
+
+  const markAllAsRead = async () => {
+    try {
+      const response = await notificationsApi.markAllAsRead()
+      if (response.success) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
+        setUnreadCount(0)
+      }
+    } catch (error) {
+      toast.error("Đánh dấu tất cả đã đọc thất bại")
+    }
+  }
+
+  const deleteNotification = async (id: string) => {
+    try {
+      const response = await notificationsApi.deleteNotification(id)
+      if (response.success) {
+        const notification = notifications.find(n => n.id === id)
+        if (notification && !notification.isRead) {
+          setUnreadCount((prev) => Math.max(0, prev - 1))
+        }
+        setNotifications((prev) => prev.filter((n) => n.id !== id))
+      }
+    } catch (error) {
+      toast.error("Xóa thông báo thất bại")
+    }
   }
 
   const getIcon = (type: string): React.ReactNode => {
-    switch (type) {
-      case "order":
+    switch (type?.toUpperCase()) {
+      case "ORDER":
         return <Package className="w-5 h-5 text-blue-500" />
-      case "promotion":
+      case "PROMOTION":
         return <Tag className="w-5 h-5 text-red-500" />
-      case "system":
+      case "SYSTEM":
         return <TrendingUp className="w-5 h-5 text-green-500" />
       default:
         return <Bell className="w-5 h-5" />
@@ -103,6 +107,25 @@ export function NotificationDropdown() {
   const filterNotifications = (type?: string) => {
     if (!type) return notifications
     return notifications.filter((n) => n.type === type)
+  }
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return "Vừa xong"
+    if (diffMins < 60) return `${diffMins} phút trước`
+    if (diffHours < 24) return `${diffHours} giờ trước`
+    if (diffDays < 7) return `${diffDays} ngày trước`
+    return date.toLocaleDateString("vi-VN")
+  }
+
+  if (!isAuthenticated) {
+    return null
   }
 
   return (
@@ -117,7 +140,7 @@ export function NotificationDropdown() {
           Thông Báo
           {unreadCount > 0 && (
             <Badge className="absolute -right-2 -top-1 h-5 min-w-5 rounded-full bg-red-500 px-1 text-xs text-white">
-              {unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </Badge>
           )}
         </Button>
@@ -157,7 +180,11 @@ export function NotificationDropdown() {
           </TabsList>
 
           <TabsContent value="all" className="m-0 max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <p>Đang tải...</p>
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                 <Bell className="w-12 h-12 mb-2 opacity-50" />
                 <p>Không có thông báo nào</p>
@@ -171,6 +198,7 @@ export function NotificationDropdown() {
                     onRead={markAsRead}
                     onDelete={deleteNotification}
                     getIcon={getIcon}
+                    formatTime={formatTime}
                   />
                 ))}
               </div>
@@ -178,31 +206,53 @@ export function NotificationDropdown() {
           </TabsContent>
 
           <TabsContent value="order" className="m-0 max-h-96 overflow-y-auto">
-            <div className="divide-y">
-              {filterNotifications("order").map((notification) => (
-                <NotificationItem
-                  key={notification.id}
-                  notification={notification}
-                  onRead={markAsRead}
-                  onDelete={deleteNotification}
-                  getIcon={getIcon}
-                />
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <p>Đang tải...</p>
+              </div>
+            ) : filterNotifications("ORDER").length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <p>Không có thông báo đơn hàng</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filterNotifications("ORDER").map((notification) => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                    onRead={markAsRead}
+                    onDelete={deleteNotification}
+                    getIcon={getIcon}
+                    formatTime={formatTime}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="promotion" className="m-0 max-h-96 overflow-y-auto">
-            <div className="divide-y">
-              {filterNotifications("promotion").map((notification) => (
-                <NotificationItem
-                  key={notification.id}
-                  notification={notification}
-                  onRead={markAsRead}
-                  onDelete={deleteNotification}
-                  getIcon={getIcon}
-                />
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <p>Đang tải...</p>
+              </div>
+            ) : filterNotifications("PROMOTION").length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                <p>Không có thông báo khuyến mãi</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {filterNotifications("PROMOTION").map((notification) => (
+                  <NotificationItem
+                    key={notification.id}
+                    notification={notification}
+                    onRead={markAsRead}
+                    onDelete={deleteNotification}
+                    getIcon={getIcon}
+                    formatTime={formatTime}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
@@ -221,31 +271,33 @@ function NotificationItem({
   onRead,
   onDelete,
   getIcon,
+  formatTime,
 }: {
   notification: Notification
   onRead: (id: string) => void
   onDelete: (id: string) => void
   getIcon: (type: string) => React.ReactNode
+  formatTime: (dateString: string) => string
 }) {
   const handleClick = () => {
-    if (!notification.read) {
+    if (!notification.isRead) {
       onRead(notification.id)
     }
   }
 
   return (
     <div
-      className={`group relative p-4 hover:bg-gray-50 transition-colors ${!notification.read ? "bg-blue-50/50" : ""}`}
+      className={`group relative p-4 hover:bg-gray-50 transition-colors ${!notification.isRead ? "bg-blue-50/50" : ""}`}
     >
       <Link href={notification.link || "#"} onClick={handleClick} className="flex gap-3">
         <div className="flex-shrink-0 mt-1">{getIcon(notification.type)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <h4 className="font-medium text-sm line-clamp-1">{notification.title}</h4>
-            {!notification.read && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />}
+            {!notification.isRead && <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />}
           </div>
           <p className="text-sm text-gray-600 line-clamp-2 mt-1">{notification.message}</p>
-          <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
+          <p className="text-xs text-gray-400 mt-1">{formatTime(notification.createdAt)}</p>
         </div>
       </Link>
       <Button

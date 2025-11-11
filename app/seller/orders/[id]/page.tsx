@@ -1,4 +1,3 @@
-import { SellerSidebar } from "@/components/seller-sidebar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -6,8 +5,10 @@ import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Printer, Package, MapPin, Phone, Mail } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { OrderTimeline } from "@/components/order-timeline"
-import { OrderStatusActions } from "@/components/order-status-actions"
+import { OrderStatusActions } from "@/components/orders/order-status-actions"
+import { OrderTimeline } from "@/components/orders/order-timeline"
+import { SellerSidebar } from "@/components/seller/seller-sidebar"
+
 
 export default function OrderDetailPage() {
   const order = {
@@ -58,7 +59,7 @@ export default function OrderDetailPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1">
         <div className="p-6 lg:p-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">

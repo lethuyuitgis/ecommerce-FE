@@ -1,13 +1,35 @@
 "use client"
 
-import { Search, ShoppingCart } from "lucide-react"
+import { useState } from "react"
+import { Search, ShoppingCart, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { NotificationDropdown } from "@/components/common/notification-dropdown"
+import { useAuth } from "@/contexts/AuthContext"
+import { useCart } from "@/hooks/useCart"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function Header() {
+  const { isAuthenticated, user, logout } = useAuth()
+  const { totalItems } = useCart()
+  const router = useRouter()
+  const [searchQuery, setSearchQuery] = useState("")
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
+    }
+  }
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-sm">
       {/* Top Bar */}
@@ -18,9 +40,7 @@ export function Header() {
               <Link href="/seller" className="hover:opacity-80">
                 Kênh Người Bán
               </Link>
-              <Link href="/download" className="hover:opacity-80">
-                Tải Ứng Dụng
-              </Link>
+
               <div className="flex items-center gap-2">
                 <span>Kết nối</span>
                 <div className="flex gap-1">
@@ -48,16 +68,50 @@ export function Header() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <NotificationDropdown />
               <Link href="/help" className="hover:opacity-80">
                 Hỗ Trợ
               </Link>
-              <Link href="/register" className="hover:opacity-80">
-                Đăng Ký
-              </Link>
-              <Link href="/login" className="hover:opacity-80">
-                Đăng Nhập
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <NotificationDropdown />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20">
+                        <User className="mr-2 h-4 w-4" />
+                        {user?.fullName || user?.email}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-white text-foreground min-w-48">
+                      <DropdownMenuItem onClick={() => router.push('/profile')}>
+                        <User className="mr-2 h-4 w-4" />
+                        Tài khoản của tôi
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push('/orders')}>
+                        Đơn hàng của tôi
+                      </DropdownMenuItem>
+                      {user?.userType === 'SELLER' && (
+                        <DropdownMenuItem onClick={() => router.push('/seller')}>
+                          Kênh người bán
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={logout}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Đăng xuất
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              ) : (
+                <>
+                  <Link href="/register" className="hover:opacity-80">
+                    Đăng Ký
+                  </Link>
+                  <Link href="/login" className="hover:opacity-80">
+                    Đăng Nhập
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -77,19 +131,22 @@ export function Header() {
 
             {/* Search Bar */}
             <div className="flex-1">
-              <div className="relative">
+              <form onSubmit={handleSearch} className="relative">
                 <Input
                   type="search"
                   placeholder="Tìm kiếm sản phẩm..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-10 w-full rounded-sm border-0 bg-white pr-12 text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-white"
                 />
                 <Button
+                  type="submit"
                   size="sm"
                   className="absolute right-0 top-0 h-10 rounded-l-none rounded-r-sm bg-secondary hover:bg-secondary/90"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
-              </div>
+              </form>
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 <Link href="/search?q=áo thun" className="hover:opacity-80">
                   Áo Thun
@@ -114,9 +171,11 @@ export function Header() {
                 className="relative text-primary-foreground hover:bg-primary-foreground/20"
               >
                 <ShoppingCart className="h-6 w-6" />
-                <Badge className="absolute -right-1 -top-1 h-5 min-w-5 rounded-full bg-white px-1 text-xs text-primary">
-                  3
-                </Badge>
+                {totalItems > 0 && (
+                  <Badge className="absolute -right-1 -top-1 h-5 min-w-5 rounded-full bg-white px-1 text-xs text-primary">
+                    {totalItems}
+                  </Badge>
+                )}
               </Button>
             </Link>
           </div>

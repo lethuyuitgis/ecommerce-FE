@@ -21,6 +21,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
+import { promotionsApi } from "@/lib/api/promotions"
 
 interface CreatePromotionDialogProps {
   children: React.ReactNode
@@ -30,6 +31,10 @@ export function CreatePromotionDialog({ children }: CreatePromotionDialogProps) 
   const [open, setOpen] = useState(false)
   const [startDate, setStartDate] = useState<Date>()
   const [endDate, setEndDate] = useState<Date>()
+  const [name, setName] = useState<string>("")
+  const [description, setDescription] = useState<string>("")
+  const [type, setType] = useState<string>("percentage")
+  const [value, setValue] = useState<string>("")
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -43,18 +48,18 @@ export function CreatePromotionDialog({ children }: CreatePromotionDialogProps) 
         <div className="space-y-6 py-4">
           <div className="space-y-2">
             <Label htmlFor="promo-name">Tên chương trình</Label>
-            <Input id="promo-name" placeholder="VD: Flash Sale Cuối Tuần" />
+            <Input id="promo-name" placeholder="VD: Flash Sale Cuối Tuần" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="promo-description">Mô tả</Label>
-            <Textarea id="promo-description" placeholder="Mô tả chi tiết về chương trình khuyến mãi" rows={3} />
+            <Textarea id="promo-description" placeholder="Mô tả chi tiết về chương trình khuyến mãi" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="promo-type">Loại giảm giá</Label>
-              <Select defaultValue="percentage">
+              <Select defaultValue="percentage" onValueChange={setType}>
                 <SelectTrigger id="promo-type">
                   <SelectValue />
                 </SelectTrigger>
@@ -67,7 +72,7 @@ export function CreatePromotionDialog({ children }: CreatePromotionDialogProps) 
 
             <div className="space-y-2">
               <Label htmlFor="promo-value">Giá trị</Label>
-              <Input id="promo-value" type="number" placeholder="VD: 30" />
+              <Input id="promo-value" type="number" placeholder="VD: 30" value={value} onChange={(e) => setValue(e.target.value)} />
             </div>
           </div>
 
@@ -122,7 +127,27 @@ export function CreatePromotionDialog({ children }: CreatePromotionDialogProps) 
           <Button variant="outline" onClick={() => setOpen(false)}>
             Hủy
           </Button>
-          <Button onClick={() => setOpen(false)}>Tạo khuyến mãi</Button>
+          <Button onClick={async () => {
+            const payload = {
+              name,
+              description,
+              promotionType: type === 'percentage' ? 'PERCENTAGE' : 'FIXED',
+              discountValue: Number(value) || 0,
+              startDate: startDate ? startDate.toISOString() : new Date().toISOString(),
+              endDate: endDate ? endDate.toISOString() : new Date(Date.now() + 86400000).toISOString(),
+              status: 'ACTIVE',
+            }
+            const resp = await promotionsApi.createPromotion(payload)
+            if (resp.success) {
+              setOpen(false)
+              setName("")
+              setDescription("")
+              setType("percentage")
+              setValue("")
+              setStartDate(undefined)
+              setEndDate(undefined)
+            }
+          }}>Tạo khuyến mãi</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

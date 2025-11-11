@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { ProductCard } from "@/components/product/product-card"
-import { featuredProducts } from "@/lib/products"
+import { useFeaturedProducts } from "@/hooks/useProducts"
+import { Product } from "@/lib/api/products"
 import { ChevronRight } from "lucide-react"
 import Link from "next/link"
 
@@ -12,6 +13,7 @@ export function FlashSaleSection() {
     minutes: 34,
     seconds: 56,
   })
+  const { products, loading } = useFeaturedProducts(0, 6)
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -35,7 +37,18 @@ export function FlashSaleSection() {
     return () => clearInterval(timer)
   }, [])
 
-  const flashSaleProducts = featuredProducts.slice(0, 6)
+  // Transform API product to component product format
+  const transformProduct = (product: Product) => ({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    originalPrice: product.comparePrice,
+    image: product.primaryImage || product.images?.[0] || '/placeholder.svg',
+    rating: product.rating || 0,
+    sold: product.totalSold || 0,
+    discount: product.comparePrice ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : undefined,
+    category: product.categoryName,
+  })
 
   return (
     <section className="border-b bg-white">
@@ -58,18 +71,22 @@ export function FlashSaleSection() {
             </div>
           </div>
           <Link
-            href="/flash-sale"
+            href="/flash-sales"
             className="flex items-center gap-1 text-sm font-medium text-primary hover:opacity-80"
           >
             Xem tất cả
             <ChevronRight className="h-4 w-4" />
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-          {flashSaleProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-4">Đang tải sản phẩm flash sale...</div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+            {products.slice(0, 6).map((product) => (
+              <ProductCard key={product.id} product={transformProduct(product)} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   )

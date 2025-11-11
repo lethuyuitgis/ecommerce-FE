@@ -1,57 +1,257 @@
 "use client"
 
-import { useState } from "react"
-import { MapPin, CreditCard } from "lucide-react"
+import { useState, useEffect } from "react"
+import { MapPin, CreditCard, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
+import { userApi, UserAddress } from "@/lib/api/user"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
-export function CheckoutForm() {
-  const [paymentMethod, setPaymentMethod] = useState("cod")
+interface CheckoutFormProps {
+  selectedAddressId?: string
+  onAddressChange?: (addressId: string) => void
+  paymentMethod?: string
+  onPaymentMethodChange?: (method: string) => void
+  note?: string
+  onNoteChange?: (note: string) => void
+}
+
+export function CheckoutForm({
+  selectedAddressId: externalSelectedAddressId,
+  onAddressChange,
+  paymentMethod: externalPaymentMethod,
+  onPaymentMethodChange,
+  note: externalNote,
+  onNoteChange,
+}: CheckoutFormProps) {
+  const { isAuthenticated } = useAuth()
+  const router = useRouter()
+  const [paymentMethod, setPaymentMethod] = useState(externalPaymentMethod || "cod")
+  const [addresses, setAddresses] = useState<UserAddress[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(externalSelectedAddressId || "")
+  const [formData, setFormData] = useState({
+    fullName: "",
+    phone: "",
+    email: "",
+    city: "",
+    district: "",
+    ward: "",
+    address: "",
+    note: externalNote || "",
+  })
+  const [useNewAddress, setUseNewAddress] = useState(false)
+
+  const handlePaymentMethodChange = (method: string) => {
+    setPaymentMethod(method)
+    onPaymentMethodChange?.(method)
+  }
+
+  const handleNoteChange = (note: string) => {
+    setFormData({ ...formData, note })
+    onNoteChange?.(note)
+  }
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login')
+      return
+    }
+
+    const fetchAddresses = async () => {
+      try {
+        const response = await userApi.getAddresses()
+        if (response.success && response.data) {
+          setAddresses(response.data)
+          if (response.data.length > 0) {
+            const defaultAddressId = response.data[0].id
+            setSelectedAddressId(defaultAddressId)
+            onAddressChange?.(defaultAddressId)
+            const defaultAddress = response.data[0]
+            setFormData({
+              fullName: defaultAddress.fullName,
+              phone: defaultAddress.phone,
+              email: defaultAddress.email || "",
+              city: defaultAddress.city || defaultAddress.province || "",
+              district: defaultAddress.district,
+              ward: defaultAddress.ward,
+              address: defaultAddress.address || defaultAddress.street || "",
+              note: externalNote || "",
+            })
+          } else {
+            setUseNewAddress(true)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch addresses:', error)
+        setUseNewAddress(true)
+      }
+    }
+
+    fetchAddresses()
+  }, [isAuthenticated, router])
+
+  const handleAddressChange = (addressId: string) => {
+    setSelectedAddressId(addressId)
+    onAddressChange?.(addressId)
+    const address = addresses.find(a => a.id === addressId)
+    if (address) {
+      setFormData({
+        fullName: address.fullName,
+        phone: address.phone,
+        email: address.email || "",
+        city: address.city || address.province || "",
+        district: address.district,
+        ward: address.ward,
+        address: address.address || address.street || "",
+        note: formData.note,
+      })
+      setUseNewAddress(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
       {/* Shipping Address */}
       <div className="rounded-lg bg-white p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <MapPin className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Địa Chỉ Nhận Hàng</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Địa Chỉ Nhận Hàng</h2>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push('/profile?tab=addresses')}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Thêm địa chỉ mới
+          </Button>
         </div>
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="fullName">Họ và tên</Label>
-              <Input id="fullName" placeholder="Nhập họ và tên" />
+
+        {addresses.length > 0 && !useNewAddress && (
+          <div className="mb-4 space-y-2">
+            {addresses.map((address) => (
+              <div
+                key={address.id}
+                className={`cursor-pointer rounded-lg border p-4 transition-colors ${selectedAddressId === address.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                  }`}
+                onClick={() => handleAddressChange(address.id)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="font-medium text-foreground">{address.fullName}</span>
+                      {address.isDefault && (
+                        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Mặc định</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{address.phone}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {address.address || address.street}, {address.ward}, {address.district}, {address.city || address.province}
+                    </p>
+                  </div>
+                  <RadioGroupItem value={address.id} id={address.id} checked={selectedAddressId === address.id} />
+                </div>
+              </div>
+            ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setUseNewAddress(true)}
+              className="w-full"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Thêm địa chỉ mới
+            </Button>
+          </div>
+        )}
+
+        {useNewAddress && (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label htmlFor="fullName">Họ và tên</Label>
+                <Input
+                  id="fullName"
+                  placeholder="Nhập họ và tên"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="phone">Số điện thoại</Label>
+                <Input
+                  id="phone"
+                  placeholder="Nhập số điện thoại"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  required
+                />
+              </div>
             </div>
             <div>
-              <Label htmlFor="phone">Số điện thoại</Label>
-              <Input id="phone" placeholder="Nhập số điện thoại" />
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Nhập email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label htmlFor="city">Tỉnh/Thành phố</Label>
+                <Input
+                  id="city"
+                  placeholder="Chọn Tỉnh/Thành phố"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="district">Quận/Huyện</Label>
+                <Input
+                  id="district"
+                  placeholder="Chọn Quận/Huyện"
+                  value={formData.district}
+                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="ward">Phường/Xã</Label>
+                <Input
+                  id="ward"
+                  placeholder="Chọn Phường/Xã"
+                  value={formData.ward}
+                  onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="address">Địa chỉ cụ thể</Label>
+              <Textarea
+                id="address"
+                placeholder="Nhập địa chỉ cụ thể"
+                rows={3}
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                required
+              />
             </div>
           </div>
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="Nhập email" />
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <Label htmlFor="city">Tỉnh/Thành phố</Label>
-              <Input id="city" placeholder="Chọn Tỉnh/Thành phố" />
-            </div>
-            <div>
-              <Label htmlFor="district">Quận/Huyện</Label>
-              <Input id="district" placeholder="Chọn Quận/Huyện" />
-            </div>
-            <div>
-              <Label htmlFor="ward">Phường/Xã</Label>
-              <Input id="ward" placeholder="Chọn Phường/Xã" />
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="address">Địa chỉ cụ thể</Label>
-            <Textarea id="address" placeholder="Nhập địa chỉ cụ thể" rows={3} />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Payment Method */}
@@ -60,7 +260,7 @@ export function CheckoutForm() {
           <CreditCard className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold text-foreground">Phương Thức Thanh Toán</h2>
         </div>
-        <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+        <RadioGroup value={paymentMethod} onValueChange={handlePaymentMethodChange}>
           <div className="space-y-3">
             <div className="flex items-center space-x-3 rounded-lg border p-4">
               <RadioGroupItem value="cod" id="cod" />
@@ -132,8 +332,11 @@ export function CheckoutForm() {
           placeholder="Ghi chú về đơn hàng, ví dụ: thời gian hay chỉ dẫn địa điểm giao hàng chi tiết hơn"
           rows={4}
           className="mt-2"
+          value={formData.note}
+          onChange={(e) => handleNoteChange(e.target.value)}
         />
       </div>
     </div>
   )
 }
+

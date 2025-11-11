@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
 import { Star } from "lucide-react"
+import { Slider } from "../ui/slider"
 
 interface CategoryFiltersProps {
   subcategories: string[]

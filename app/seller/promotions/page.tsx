@@ -1,18 +1,20 @@
-import { SellerSidebar } from "@/components/seller-sidebar"
+
+import { CreatePromotionDialog } from "@/components/seller/create-promotion-dialog"
+import { CreateVoucherDialog } from "@/components/seller/create-voucher-dialog"
+import { PromotionsTable } from "@/components/seller/promotions-table"
+import { SellerSidebar } from "@/components/seller/seller-sidebar"
+import { VouchersTable } from "@/components/seller/vouchers-table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Plus } from 'lucide-react'
-import { PromotionsTable } from "@/components/promotions-table"
-import { VouchersTable } from "@/components/vouchers-table"
-import { CreatePromotionDialog } from "@/components/create-promotion-dialog"
-import { CreateVoucherDialog } from "@/components/create-voucher-dialog"
+
 
 export default function PromotionsPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1">
         <div className="p-6 lg:p-8">
           {/* Header */}
           <div className="mb-6">

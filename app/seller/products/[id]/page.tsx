@@ -1,4 +1,4 @@
-import { SellerSidebar } from "@/components/seller-sidebar"
+
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -6,14 +6,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Edit, Trash2, TrendingUp, Star } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { ProductDetailStats } from "@/components/product-detail-stats"
-import { ProductInventoryHistory } from "@/components/product-inventory-history"
+import dynamic from "next/dynamic"
+const ProductDetailStats = dynamic(() => import("@/components/product/product-detail-stats").then(m => m.ProductDetailStats), { ssr: false })
+import { ProductInventoryHistory } from "@/components/seller/product-inventory-history"
+import { SellerSidebar } from "@/components/seller/seller-sidebar"
+
 
 export default function ProductDetailPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1">
         <div className="p-6 lg:p-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
@@ -45,7 +48,7 @@ export default function ProductDetailPage() {
             <Card className="lg:col-span-2">
               <CardContent className="p-6">
                 <div className="flex gap-6">
-                  <div className="flex-shrink-0">
+                  <div className="shrink-0">
                     <Image
                       src="/modern-smartphone.png"
                       alt="Product"

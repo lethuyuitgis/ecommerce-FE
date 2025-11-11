@@ -1,15 +1,34 @@
-import { SellerSidebar } from "@/components/seller-sidebar"
+'use client'
+
+import { useEffect } from "react"
+import { SellerSidebar } from "@/components/seller/seller-sidebar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ShopSettings } from "@/components/shop-settings"
-import { ShippingSettings } from "@/components/shipping-settings"
-import { PaymentSettings } from "@/components/payment-settings"
-import { NotificationSettings } from "@/components/notification-settings"
+import { ShopSettings } from "@/components/settings/shop-settings"
+import { ShippingSettings } from "@/components/settings/shipping-settings"
+
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
+import { NotificationSettings } from "@/components/settings/notification-settings"
+import { PaymentSettings } from "@/components/settings/payment-settings"
 
 export default function SettingsPage() {
+  const { isAuthenticated, user } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.userType !== 'SELLER') {
+      router.push('/login')
+    }
+  }, [isAuthenticated, user, router])
+
+  if (!isAuthenticated || user?.userType !== 'SELLER') {
+    return null
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1">
         <div className="p-6 lg:p-8">
           {/* Header */}
           <div className="mb-6">

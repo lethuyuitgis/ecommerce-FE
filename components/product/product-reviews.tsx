@@ -1,173 +1,232 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Star, ThumbsUp, Camera } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { ReviewForm } from "@/components/review-form"
+import { reviewsApi, ProductReview } from "@/lib/api/reviews"
+import { useAuth } from "@/contexts/AuthContext"
+import { toast } from "sonner"
 
 interface ProductReviewsProps {
   productId: string
 }
 
-const reviews = [
-  {
-    id: 1,
-    user: "Nguyễn Văn A",
-    avatar: "/user-avatar-1.jpg",
-    rating: 5,
-    date: "2025-01-15",
-    comment: "Sản phẩm rất tốt, chất lượng như mô tả. Giao hàng nhanh, đóng gói cẩn thận.",
-    images: ["/review-1.jpg", "/review-2.jpg"],
-    helpful: 24,
-  },
-  {
-    id: 2,
-    user: "Trần Thị B",
-    avatar: "/user-avatar-2.jpg",
-    rating: 4,
-    date: "2025-01-10",
-    comment: "Sản phẩm đẹp, giá cả hợp lý. Tuy nhiên giao hàng hơi lâu.",
-    images: [],
-    helpful: 12,
-  },
-  {
-    id: 3,
-    user: "Lê Văn C",
-    avatar: "/user-avatar-3.jpg",
-    rating: 5,
-    date: "2025-01-05",
-    comment: "Rất hài lòng với sản phẩm. Sẽ ủng hộ shop lần sau.",
-    images: ["/review-3.jpg"],
-    helpful: 8,
-  },
-]
-
 export function ProductReviews({ productId }: ProductReviewsProps) {
+  const { isAuthenticated } = useAuth()
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [activeFilter, setActiveFilter] = useState("all")
+  const [reviews, setReviews] = useState<ProductReview[]>([])
+  const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [averageRating, setAverageRating] = useState(0)
+  const [ratingDistribution, setRatingDistribution] = useState<Record<number, number>>({
+    5: 0,
+    4: 0,
+    3: 0,
+    2: 0,
+    1: 0,
+  })
+
+  useEffect(() => {
+    fetchReviews()
+  }, [productId, page])
+
+  const fetchReviews = async () => {
+    try {
+      setLoading(true)
+      const response = await reviewsApi.getProductReviews(productId, page, 10)
+      if (response.success && response.data) {
+        setReviews(response.data.content)
+        setTotalPages(response.data.totalPages)
+
+        // Calculate average rating and distribution
+        const allReviews = response.data.content
+        if (allReviews.length > 0) {
+          const avg = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+          setAverageRating(avg)
+
+          const dist: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+          allReviews.forEach(r => {
+            dist[r.rating] = (dist[r.rating] || 0) + 1
+          })
+          setRatingDistribution(dist)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleReviewSuccess = () => {
+    fetchReviews()
+  }
+
+  const filteredReviews = reviews.filter((review) => {
+    if (activeFilter === "all") return true
+    if (activeFilter === "images") return false // TODO: Add image support
+    return review.rating === Number.parseInt(activeFilter)
+  })
 
   return (
     <div className="mt-6 rounded-lg bg-white p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold">ĐÁNH GIÁ SẢN PHẨM</h2>
-        <Button onClick={() => setShowReviewForm(true)} className="gap-2">
-          <Star className="w-4 h-4" />
-          Viết đánh giá
-        </Button>
+        {isAuthenticated && (
+          <Button onClick={() => setShowReviewForm(true)} className="gap-2">
+            <Star className="w-4 h-4" />
+            Viết đánh giá
+          </Button>
+        )}
       </div>
 
       {/* Review Form Modal */}
-      {showReviewForm && <ReviewForm productId={productId} onClose={() => setShowReviewForm(false)} />}
+      {showReviewForm && (
+        <ReviewForm
+          productId={productId}
+          onClose={() => setShowReviewForm(false)}
+          onSuccess={handleReviewSuccess}
+        />
+      )}
 
       {/* Rating Overview */}
-      <div className="mb-6 grid gap-6 md:grid-cols-2">
-        <div className="flex items-center gap-6">
-          <div className="text-center">
-            <div className="mb-2 text-4xl font-bold text-primary">4.8</div>
-            <div className="mb-2 flex justify-center">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              ))}
+      {loading ? (
+        <div className="mb-6 text-center py-4">
+          <p className="text-muted-foreground">Đang tải đánh giá...</p>
+        </div>
+      ) : reviews.length > 0 ? (
+        <div className="mb-6 grid gap-6 md:grid-cols-2">
+          <div className="flex items-center gap-6">
+            <div className="text-center">
+              <div className="mb-2 text-4xl font-bold text-primary">
+                {averageRating.toFixed(1)}
+              </div>
+              <div className="mb-2 flex justify-center">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`h-5 w-5 ${star <= Math.round(averageRating)
+                        ? "fill-yellow-400 text-yellow-400"
+                        : "text-gray-300"
+                      }`}
+                  />
+                ))}
+              </div>
+              <div className="text-sm text-muted-foreground">{reviews.length} đánh giá</div>
             </div>
-            <div className="text-sm text-muted-foreground">2,341 đánh giá</div>
+          </div>
+
+          <div className="space-y-2">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const count = ratingDistribution[star] || 0
+              const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0
+              return (
+                <div key={star} className="flex items-center gap-2">
+                  <span className="w-12 text-sm text-muted-foreground">{star} sao</span>
+                  <Progress value={percentage} className="flex-1" />
+                  <span className="w-12 text-right text-sm text-muted-foreground">{count}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
+      ) : (
+        <div className="mb-6 text-center py-4">
+          <p className="text-muted-foreground">Chưa có đánh giá nào</p>
+        </div>
+      )}
 
-        <div className="space-y-2">
-          {[5, 4, 3, 2, 1].map((star) => (
-            <div key={star} className="flex items-center gap-2">
-              <span className="w-12 text-sm text-muted-foreground">{star} sao</span>
-              <Progress value={star === 5 ? 80 : star === 4 ? 15 : 5} className="flex-1" />
-              <span className="w-12 text-right text-sm text-muted-foreground">
-                {star === 5 ? "1,872" : star === 4 ? "351" : "118"}
-              </span>
+      {/* Filter Buttons */}
+      {reviews.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-2">
+          <Button
+            variant={activeFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveFilter("all")}
+          >
+            Tất Cả
+          </Button>
+          {[5, 4, 3, 2, 1].map((star) => {
+            const count = ratingDistribution[star] || 0
+            if (count === 0) return null
+            return (
+              <Button
+                key={star}
+                variant={activeFilter === String(star) ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveFilter(String(star))}
+              >
+                {star} Sao ({count})
+              </Button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Reviews List */}
+      {loading ? (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Đang tải đánh giá...</p>
+        </div>
+      ) : filteredReviews.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Không có đánh giá nào</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {filteredReviews.map((review) => (
+            <div key={review.id} className="border-b pb-6 last:border-0">
+              <div className="mb-3 flex items-start gap-3">
+                <Avatar>
+                  <AvatarImage src="/placeholder.svg" />
+                  <AvatarFallback>{review.userName?.[0] || 'U'}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <div className="mb-1 font-medium text-foreground">{review.userName || 'Người dùng'}</div>
+                  <div className="mb-2 flex items-center gap-2">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`h-4 w-4 ${star <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                            }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(review.createdAt).toLocaleDateString("vi-VN")}
+                    </span>
+                  </div>
+                  {review.title && (
+                    <h4 className="mb-2 font-semibold text-foreground">{review.title}</h4>
+                  )}
+                  {review.comment && (
+                    <p className="mb-3 text-sm text-foreground">{review.comment}</p>
+                  )}
+                  <Button variant="ghost" size="sm" className="h-auto p-0 text-muted-foreground hover:text-primary">
+                    <ThumbsUp className="mr-1 h-4 w-4" />
+                    Hữu ích ({review.helpfulCount || 0})
+                  </Button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Filter Buttons */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Button
-          variant={activeFilter === "all" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveFilter("all")}
-        >
-          Tất Cả
-        </Button>
-        <Button variant={activeFilter === "5" ? "default" : "outline"} size="sm" onClick={() => setActiveFilter("5")}>
-          5 Sao (1,872)
-        </Button>
-        <Button variant={activeFilter === "4" ? "default" : "outline"} size="sm" onClick={() => setActiveFilter("4")}>
-          4 Sao (351)
-        </Button>
-        <Button variant={activeFilter === "3" ? "default" : "outline"} size="sm" onClick={() => setActiveFilter("3")}>
-          3 Sao (89)
-        </Button>
-        <Button
-          variant={activeFilter === "images" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setActiveFilter("images")}
-        >
-          <Camera className="w-4 h-4 mr-1" />
-          Có Hình Ảnh (456)
-        </Button>
-      </div>
-
-      {/* Reviews List */}
-      <div className="space-y-6">
-        {reviews.map((review) => (
-          <div key={review.id} className="border-b pb-6 last:border-0">
-            <div className="mb-3 flex items-start gap-3">
-              <Avatar>
-                <AvatarImage src={review.avatar || "/placeholder.svg"} />
-                <AvatarFallback>{review.user[0]}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="mb-1 font-medium text-foreground">{review.user}</div>
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="flex">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        className={`h-4 w-4 ${
-                          star <= review.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-muted-foreground">{review.date}</span>
-                </div>
-                <p className="mb-3 text-sm text-foreground">{review.comment}</p>
-                {review.images.length > 0 && (
-                  <div className="mb-3 flex gap-2">
-                    {review.images.map((image, index) => (
-                      <div key={index} className="h-20 w-20 overflow-hidden rounded border">
-                        <img
-                          src={image || "/placeholder.svg"}
-                          alt={`Review ${index + 1}`}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <Button variant="ghost" size="sm" className="h-auto p-0 text-muted-foreground hover:text-primary">
-                  <ThumbsUp className="mr-1 h-4 w-4" />
-                  Hữu ích ({review.helpful})
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      )}
 
       {/* Load More */}
-      <div className="mt-6 text-center">
-        <Button variant="outline">Xem Thêm Đánh Giá</Button>
-      </div>
+      {totalPages > page + 1 && (
+        <div className="mt-6 text-center">
+          <Button variant="outline" onClick={() => setPage(page + 1)}>
+            Xem Thêm Đánh Giá
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

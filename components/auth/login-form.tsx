@@ -2,23 +2,254 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
+import { useAuth } from "@/contexts/AuthContext"
+import { toast } from "sonner"
+
+declare global {
+  interface Window {
+    google?: any
+    FB?: any
+    fbAsyncInit?: () => void
+  }
+}
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const { login, loginWithGoogle, loginWithFacebook } = useAuth()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    // Load Google Identity Services
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    document.head.appendChild(script)
+
+    script.onload = () => {
+      // Initialize Google Sign-In when script loads
+      if (window.google && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          callback: async (response: any) => {
+            try {
+              await loginWithGoogle(response.credential)
+              toast.success("Đăng nhập với Google thành công!")
+            } catch (error: any) {
+              toast.error(error.message || "Đăng nhập với Google thất bại.")
+            }
+          },
+        })
+
+        // Render Google Sign-In button
+        setTimeout(() => {
+          const buttonContainer = document.getElementById('google-signin-button')
+          if (buttonContainer) {
+            window.google.accounts.id.renderButton(buttonContainer, {
+              theme: 'outline',
+              size: 'large',
+              width: '100%',
+              type: 'standard',
+            })
+          }
+        }, 100)
+      }
+    }
+
+    // Load Facebook SDK
+    const fbScript = document.createElement('script')
+    fbScript.src = 'https://connect.facebook.net/en_US/sdk.js'
+    fbScript.async = true
+    fbScript.defer = true
+    fbScript.id = 'facebook-jssdk'
+
+    // Set up fbAsyncInit before loading script
+    window.fbAsyncInit = function () {
+      if (window.FB) {
+        window.FB.init({
+          appId: process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '',
+          cookie: true,
+          xfbml: true,
+          version: 'v18.0'
+        })
+      }
+    }
+
+    document.head.appendChild(fbScript)
+
+    return () => {
+      if (script.parentNode) {
+        document.head.removeChild(script)
+      }
+      if (fbScript.parentNode) {
+        document.head.removeChild(fbScript)
+      }
+    }
+  }, [loginWithGoogle])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
-    console.log("Login:", { email, password })
+    try {
+      setLoading(true)
+      await login(email, password)
+      toast.success("Đăng nhập thành công!")
+    } catch (error: any) {
+      toast.error(error.message || "Đăng nhập thất bại. Vui lòng thử lại.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    try {
+      console.log('Google login clicked')
+      setLoading(true)
+
+      if (!window.google) {
+        toast.error("Google Sign-In chưa sẵn sàng. Vui lòng thử lại sau.")
+        setLoading(false)
+        return
+      }
+
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+      console.log('Google Client ID:', clientId ? 'Set' : 'Not set')
+
+      if (!clientId) {
+        toast.error("Google Client ID chưa được cấu hình. Vui lòng liên hệ quản trị viên.")
+        setLoading(false)
+        return
+      }
+
+      // Initialize Google Sign-In with callback
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response: any) => {
+          console.log('Google callback received')
+          try {
+            setLoading(true)
+            await loginWithGoogle(response.credential)
+            toast.success("Đăng nhập với Google thành công!")
+          } catch (error: any) {
+            console.error('Google login error:', error)
+            toast.error(error.message || "Đăng nhập với Google thất bại.")
+          } finally {
+            setLoading(false)
+          }
+        },
+      })
+
+      // Render button in the hidden container and trigger click
+      const buttonContainer = document.getElementById('google-signin-button')
+      if (buttonContainer) {
+        // Clear existing content
+        buttonContainer.innerHTML = ''
+
+        // Render button
+        window.google.accounts.id.renderButton(buttonContainer, {
+          theme: 'outline',
+          size: 'large',
+          width: '100%',
+          type: 'standard',
+          text: 'signin_with',
+        })
+
+        // Wait a bit then click the button programmatically
+        setTimeout(() => {
+          const button = buttonContainer.querySelector('div[role="button"]') as HTMLElement
+          if (button) {
+            console.log('Clicking Google button programmatically')
+            button.click()
+          } else {
+            console.log('Google button not found, trying alternative method')
+            // Alternative: trigger click on iframe
+            const iframe = buttonContainer.querySelector('iframe')
+            if (iframe) {
+              iframe.click()
+            } else {
+              setLoading(false)
+            }
+          }
+        }, 500)
+      } else {
+        console.log('Button container not found')
+        setLoading(false)
+      }
+    } catch (error: any) {
+      console.error('Google login error:', error)
+      toast.error(error.message || "Đăng nhập với Google thất bại.")
+      setLoading(false)
+    }
+  }
+
+  const handleFacebookLogin = async () => {
+    try {
+      console.log('Facebook login clicked')
+      setLoading(true)
+
+      if (!window.FB) {
+        console.log('Facebook SDK not loaded')
+        toast.error("Facebook SDK chưa sẵn sàng. Vui lòng thử lại sau.")
+        setLoading(false)
+        return
+      }
+
+      const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID
+      console.log('Facebook App ID:', appId ? 'Set' : 'Not set')
+
+      if (!appId) {
+        toast.error("Facebook App ID chưa được cấu hình. Vui lòng liên hệ quản trị viên.")
+        setLoading(false)
+        return
+      }
+
+      // Check if SDK is ready and initialized
+      window.FB.getLoginStatus((statusResponse: any) => {
+        console.log('Facebook login status:', statusResponse)
+
+        // Proceed with login
+        window.FB.login((loginResponse: any) => {
+          console.log('Facebook login response:', loginResponse)
+
+          if (loginResponse.authResponse) {
+            const accessToken = loginResponse.authResponse.accessToken
+            console.log('Facebook access token received')
+
+            loginWithFacebook(accessToken)
+              .then(() => {
+                toast.success("Đăng nhập với Facebook thành công!")
+                setLoading(false)
+              })
+              .catch((error: any) => {
+                console.error('Facebook login error:', error)
+                toast.error(error.message || "Đăng nhập với Facebook thất bại.")
+                setLoading(false)
+              })
+          } else {
+            console.log('Facebook login cancelled or failed')
+            if (loginResponse.error) {
+              console.error('Facebook error:', loginResponse.error)
+              toast.error(loginResponse.error.message || "Đăng nhập với Facebook thất bại.")
+            } else {
+              toast.error("Đăng nhập với Facebook bị hủy.")
+            }
+            setLoading(false)
+          }
+        }, { scope: 'email,public_profile' })
+      }, true) // Force roundtrip to refresh status
+    } catch (error: any) {
+      console.error('Facebook login error:', error)
+      toast.error(error.message || "Đăng nhập với Facebook thất bại.")
+      setLoading(false)
+    }
   }
 
   return (
@@ -72,8 +303,8 @@ export function LoginForm() {
           </Link>
         </div>
 
-        <Button type="submit" className="w-full bg-primary hover:bg-primary/90" size="lg">
-          Đăng Nhập
+        <Button type="submit" className="w-full bg-primary hover:bg-primary/90" size="lg" disabled={loading}>
+          {loading ? "Đang đăng nhập..." : "Đăng Nhập"}
         </Button>
       </form>
 
@@ -84,7 +315,13 @@ export function LoginForm() {
       </div>
 
       <div className="space-y-3">
-        <Button variant="outline" className="w-full bg-transparent" size="lg">
+        <Button
+          variant="outline"
+          className="w-full bg-transparent"
+          size="lg"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+        >
           <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
             <path
               fill="#4285F4"
@@ -106,13 +343,21 @@ export function LoginForm() {
           Đăng nhập với Google
         </Button>
 
-        <Button variant="outline" className="w-full bg-transparent" size="lg">
+        <Button
+          variant="outline"
+          className="w-full bg-transparent"
+          size="lg"
+          onClick={handleFacebookLogin}
+          disabled={loading}
+        >
           <svg className="mr-2 h-5 w-5" fill="#1877F2" viewBox="0 0 24 24">
             <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
           </svg>
           Đăng nhập với Facebook
         </Button>
       </div>
+
+      <div id="google-signin-button" className="mt-3 w-full"></div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Bạn chưa có tài khoản?{" "}

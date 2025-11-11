@@ -1,93 +1,73 @@
-import Link from "next/link"
+'use client'
 
-const categories = [
-  {
-    id: 1,
-    name: "Thời Trang Nam",
-    icon: "/category-men-fashion.jpg",
-    href: "/category/thoi-trang-nam",
-  },
-  {
-    id: 2,
-    name: "Thời Trang Nữ",
-    icon: "/category-women-fashion.jpg",
-    href: "/category/thoi-trang-nu",
-  },
-  {
-    id: 3,
-    name: "Điện Thoại",
-    icon: "/category-phone.jpg",
-    href: "/category/dien-thoai",
-  },
-  {
-    id: 4,
-    name: "Máy Tính",
-    icon: "/category-laptop.jpg",
-    href: "/category/may-tinh",
-  },
-  {
-    id: 5,
-    name: "Nhà Cửa",
-    icon: "/category-home.jpg",
-    href: "/category/nha-cua",
-  },
-  {
-    id: 6,
-    name: "Sắc Đẹp",
-    icon: "/category-beauty.jpg",
-    href: "/category/sac-dep",
-  },
-  {
-    id: 7,
-    name: "Thể Thao",
-    icon: "/category-sports.jpg",
-    href: "/category/the-thao",
-  },
-  {
-    id: 8,
-    name: "Giày Dép",
-    icon: "/category-shoes.jpg",
-    href: "/category/giay-dep",
-  },
-  {
-    id: 9,
-    name: "Túi Ví",
-    icon: "/category-bags.jpg",
-    href: "/category/tui-vi",
-  },
-  {
-    id: 10,
-    name: "Đồng Hồ",
-    icon: "/category-watch.jpg",
-    href: "/category/dong-ho",
-  },
-]
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { categoriesApi, Category } from "@/lib/api/categories"
 
 export function CategorySection() {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await categoriesApi.getAll()
+        if (response.success && response.data) {
+          // Get all categories (parent categories only)
+          setCategories(response.data.slice(0, 26)) // Limit to 26 categories
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error)
+        setCategories([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCategories()
+  }, [])
+
   return (
     <section className="border-b bg-white">
       <div className="container mx-auto px-4 py-6">
         <h2 className="mb-4 text-lg font-semibold text-foreground">DANH MỤC</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5">
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={category.href}
-              className="group relative overflow-hidden rounded-lg transition-transform hover:scale-105"
-            >
-              <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                <img
-                  src={category.icon || "/placeholder.svg"}
-                  alt={category.name}
-                  className="h-full w-full object-cover transition-transform group-hover:scale-110"
-                />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30 transition-colors group-hover:bg-black/40">
-                  <span className="text-center text-sm font-semibold text-white drop-shadow-lg">{category.name}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-4">Đang tải danh mục...</div>
+        ) : categories.length > 0 ? (
+          <div className="relative">
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+              {categories.map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/category/${category.slug}`}
+                  className="group flex min-w-[80px] flex-col items-center gap-2 transition-transform hover:scale-105"
+                >
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 transition-colors group-hover:bg-gray-200 overflow-hidden">
+                    {category.coverImage ? (
+                      <img
+                        src={category.coverImage}
+                        alt={category.name}
+                        className="h-full w-full rounded-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = '/placeholder.svg'
+                        }}
+                      />
+                    ) : category.icon ? (
+                      <span className="text-2xl">{category.icon}</span>
+                    ) : (
+                      <span className="text-2xl">📦</span>
+                    )}
+                  </div>
+                  <span className="text-center text-xs font-medium text-foreground group-hover:text-primary">
+                    {category.name}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-4 text-muted-foreground">Chưa có danh mục nào</div>
+        )}
       </div>
     </section>
   )

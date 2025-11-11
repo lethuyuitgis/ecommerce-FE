@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Tag,
   Users,
+  ListTree,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
@@ -21,6 +22,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Tổng quan", href: "/seller" },
   { icon: ShoppingBag, label: "Đơn hàng", href: "/seller/orders" },
   { icon: Package, label: "Sản phẩm", href: "/seller/products" },
+  { icon: ListTree, label: "Danh mục", href: "/seller/categories" },
   { icon: Tag, label: "Khuyến mãi", href: "/seller/promotions" },
   { icon: BarChart3, label: "Thống kê", href: "/seller/analytics" },
   { icon: MessageSquare, label: "Tin nhắn", href: "/seller/messages" },
@@ -54,7 +56,7 @@ export function SellerSidebar() {
                 variant={isActive ? "secondary" : "ghost"}
                 className={`w-full justify-start gap-3 ${collapsed ? "px-2" : ""}`}
               >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
+                <item.icon className="w-5 h-5 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
               </Button>
             </Link>

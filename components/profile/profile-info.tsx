@@ -2,22 +2,56 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { userApi, User } from "@/lib/api/user"
+import { useAuth } from "@/contexts/AuthContext"
+import { toast } from "sonner"
+import { apiClientWithFile } from "@/lib/api/client"
 
 export function ProfileInfo() {
+  const { user: authUser } = useAuth()
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
-    fullName: "Nguyễn Văn A",
-    email: "nguyenvana@email.com",
-    phone: "0123456789",
+    fullName: "",
+    email: "",
+    phone: "",
     gender: "male",
-    birthDate: "1990-01-01",
+    birthDate: "",
   })
+
+  useEffect(() => {
+    fetchProfile()
+  }, [])
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true)
+      const response = await userApi.getProfile()
+      if (response.success && response.data) {
+        setUser(response.data)
+        setFormData({
+          fullName: response.data.fullName || "",
+          email: response.data.email || "",
+          phone: response.data.phone || "",
+          gender: "male", // Default, update if user has gender field
+          birthDate: "", // Update if user has birthDate field
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch profile:', error)
+      toast.error("Tải thông tin thất bại")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -26,9 +60,52 @@ export function ProfileInfo() {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      setSaving(true)
+      const response = await apiClientWithFile<{ url: string }>('/upload', file, 'avatars')
+      if (response.success && response.data) {
+        await userApi.updateProfile({ avatarUrl: response.data.url })
+        toast.success("Cập nhật ảnh đại diện thành công")
+        fetchProfile()
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Cập nhật ảnh đại diện thất bại")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Update profile:", formData)
+    try {
+      setSaving(true)
+      const response = await userApi.updateProfile({
+        fullName: formData.fullName,
+        phone: formData.phone,
+      })
+      if (response.success && response.data) {
+        setUser(response.data)
+        toast.success("Cập nhật thông tin thành công")
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Cập nhật thông tin thất bại")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-lg bg-white p-6">
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Đang tải thông tin...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -91,21 +168,37 @@ export function ProfileInfo() {
               <Input id="birthDate" type="date" value={formData.birthDate} onChange={handleChange} />
             </div>
 
-            <Button type="submit" className="bg-primary hover:bg-primary/90">
-              Lưu Thay Đổi
+            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={saving}>
+              {saving ? "Đang lưu..." : "Lưu Thay Đổi"}
             </Button>
           </form>
         </div>
 
         <div className="flex flex-col items-center border-l pl-8">
           <Avatar className="mb-4 h-32 w-32">
-            <AvatarImage src="/placeholder.svg" />
-            <AvatarFallback>NV</AvatarFallback>
+            <AvatarImage src={user?.avatarUrl || "/placeholder.svg"} />
+            <AvatarFallback>{user?.fullName?.[0] || 'U'}</AvatarFallback>
           </Avatar>
-          <Button variant="outline" size="sm" className="mb-2 bg-transparent">
-            <Camera className="mr-2 h-4 w-4" />
-            Chọn Ảnh
-          </Button>
+          <label htmlFor="avatar-upload">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mb-2 bg-transparent cursor-pointer"
+              disabled={saving}
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              {saving ? "Đang tải..." : "Chọn Ảnh"}
+            </Button>
+          </label>
+          <input
+            id="avatar-upload"
+            type="file"
+            accept="image/jpeg,image/png"
+            className="hidden"
+            onChange={handleAvatarChange}
+            disabled={saving}
+          />
           <p className="text-center text-xs text-muted-foreground">
             Dung lượng file tối đa 1 MB
             <br />

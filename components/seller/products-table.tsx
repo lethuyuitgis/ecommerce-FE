@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Edit, Trash2, Copy, Eye, EyeOff } from "lucide-react"
-import { EditProductDialog } from "@/components/edit-product-dialog"
+import { EditProductDialog } from "./edit-product-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { productsApi, Product } from "@/lib/api/products"
+import { toast } from "sonner"
 
 const mockProducts = [
   {
@@ -53,15 +65,49 @@ const mockProducts = [
   },
 ]
 
-export function ProductsTable() {
+export function ProductsTable({
+  q,
+  categoryId,
+  status,
+}: {
+  q?: string
+  categoryId?: string
+  status?: string
+}) {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
   const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [deleteProduct, setDeleteProduct] = useState<any>(null)
+  const [items, setItems] = useState<Product[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [page, setPage] = useState<number>(0)
+  const [size, setSize] = useState<number>(10)
+  const [totalPages, setTotalPages] = useState<number>(0)
+
+  useEffect(() => {
+    fetchPage(page, size, { q, categoryId, status })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, size, q, categoryId, status])
+
+  const fetchPage = async (p: number, s: number, params?: { q?: string; categoryId?: string; status?: string }) => {
+    try {
+      setLoading(true)
+      const resp = await productsApi.getSellerProducts(p, s, params)
+      if (resp.success && resp.data) {
+        setItems(resp.data.content || [])
+        setTotalPages(resp.data.totalPages || 0)
+      }
+    } catch (e) {
+      toast.error("Tải sản phẩm thất bại")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const toggleSelectAll = () => {
-    if (selectedProducts.length === mockProducts.length) {
+    if (selectedProducts.length === items.length) {
       setSelectedProducts([])
     } else {
-      setSelectedProducts(mockProducts.map((p) => p.id))
+      setSelectedProducts(items.map((p) => p.id))
     }
   }
 
@@ -110,7 +156,19 @@ export function ProductsTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockProducts.map((product) => (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  Đang tải sản phẩm...
+                </TableCell>
+              </TableRow>
+            ) : items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  Không có sản phẩm
+                </TableCell>
+              </TableRow>
+            ) : items.map((product) => (
               <TableRow key={product.id}>
                 <TableCell>
                   <Checkbox
@@ -121,7 +179,7 @@ export function ProductsTable() {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Image
-                      src={product.image || "/placeholder.svg"}
+                      src={product.primaryImage || "/placeholder.svg"}
                       alt={product.name}
                       width={60}
                       height={60}
@@ -134,17 +192,17 @@ export function ProductsTable() {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                <TableCell>{product.category}</TableCell>
-                <TableCell className="text-right font-medium">{formatPrice(product.price)}</TableCell>
+                <TableCell className="font-mono text-sm">{product.sku || '-'}</TableCell>
+                <TableCell>{product.categoryName || '-'}</TableCell>
+                <TableCell className="text-right font-medium">{formatPrice(product.price || 0)}</TableCell>
                 <TableCell className="text-right">
-                  <span className={product.stock === 0 ? "text-destructive font-medium" : ""}>{product.stock}</span>
+                  <span className={product.quantity === 0 ? "text-destructive font-medium" : ""}>{product.quantity}</span>
                 </TableCell>
-                <TableCell className="text-right">{product.sold}</TableCell>
+                <TableCell className="text-right">{product.totalSold || 0}</TableCell>
                 <TableCell>
-                  {product.status === "active" ? (
+                  {product.status?.toLowerCase() === "active" ? (
                     <Badge variant="default">Đang bán</Badge>
-                  ) : product.status === "inactive" ? (
+                  ) : product.status?.toLowerCase() === "inactive" ? (
                     <Badge variant="secondary">Hết hàng</Badge>
                   ) : (
                     <Badge variant="outline">Nháp</Badge>
@@ -167,7 +225,7 @@ export function ProductsTable() {
                         Sao chép
                       </DropdownMenuItem>
                       <DropdownMenuItem>
-                        {product.status === "active" ? (
+                        {product.status?.toLowerCase() === "active" ? (
                           <>
                             <EyeOff className="h-4 w-4 mr-2" />
                             Ẩn sản phẩm
@@ -180,7 +238,7 @@ export function ProductsTable() {
                         )}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteProduct(product)}>
                         <Trash2 className="h-4 w-4 mr-2" />
                         Xóa
                       </DropdownMenuItem>
@@ -191,6 +249,24 @@ export function ProductsTable() {
             ))}
           </TableBody>
         </Table>
+        <div className="flex items-center justify-between p-4">
+          <div className="text-sm text-muted-foreground">
+            Trang {page + 1}{totalPages ? ` / ${totalPages}` : ''}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+              Trước
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={totalPages === 0 || page >= totalPages - 1}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Sau
+            </Button>
+          </div>
+        </div>
       </div>
 
       {editingProduct && (
@@ -200,6 +276,41 @@ export function ProductsTable() {
           onOpenChange={(open) => !open && setEditingProduct(null)}
         />
       )}
+      <AlertDialog open={!!deleteProduct} onOpenChange={(open) => { if (!open) setDeleteProduct(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa sản phẩm?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Sản phẩm "{deleteProduct?.name}" sẽ bị xóa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="outline">Hủy</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                className="text-destructive"
+                onClick={async () => {
+                  if (deleteProduct?.id) {
+                    const id = deleteProduct.id as string
+                    setDeleteProduct(null)
+                    const resp = await productsApi.deleteProduct(id)
+                    if (resp.success) {
+                      toast.success("Đã xóa sản phẩm")
+                      fetchPage(page, size)
+                    } else {
+                      toast.error(resp.message || "Xóa sản phẩm thất bại")
+                    }
+                  }
+                }}
+              >
+                Xóa
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

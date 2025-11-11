@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { SellerSidebar } from "@/components/seller-sidebar"
-import { AddProductDialog } from "@/components/add-product-dialog"
+
 import Link from "next/link"
+import { SellerSidebar } from "./seller-sidebar"
+import { AddProductDialog } from "./add-product-dialog"
 
 const stats = [
   {
@@ -137,7 +138,7 @@ export function SellerDashboard() {
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
 
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1">
         {/* Header */}
         <header className="border-b bg-card">
           <div className="flex items-center justify-between p-6">

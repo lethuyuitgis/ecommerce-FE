@@ -1,19 +1,20 @@
-import { SellerSidebar } from "@/components/seller-sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, TrendingUp, TrendingDown } from "lucide-react"
-import { RevenueChart } from "@/components/revenue-chart"
-import { TopProductsChart } from "@/components/top-products-chart"
-import { CustomerAnalytics } from "@/components/customer-analytics"
-import { TrafficAnalytics } from "@/components/traffic-analytics"
+import { SellerSidebar } from "@/components/seller/seller-sidebar"
+import { CustomerAnalytics } from "@/components/analytics/customer-analytics"
+import { RevenueChart } from "@/components/analytics/revenue-chart"
+import { TopProductsChart } from "@/components/analytics/top-products-chart"
+import { TrafficAnalytics } from "@/components/analytics/traffic-analytics"
+
 
 export default function AnalyticsPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
-      <div className="flex-1 lg:ml-64">
+      <div className="flex-1">
         <div className="p-6 lg:p-8">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">

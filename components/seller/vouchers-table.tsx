@@ -11,6 +11,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Edit, Trash2, Copy } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useState } from "react"
 
 const mockVouchers = [
   {
@@ -68,6 +79,7 @@ const mockVouchers = [
 ]
 
 export function VouchersTable() {
+  const [deleteVoucher, setDeleteVoucher] = useState<any>(null)
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -110,67 +122,89 @@ export function VouchersTable() {
   }
 
   return (
-    <div className="rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Mã voucher</TableHead>
-            <TableHead>Loại</TableHead>
-            <TableHead>Giá trị</TableHead>
-            <TableHead>Đơn tối thiểu</TableHead>
-            <TableHead className="text-right">Số lượng</TableHead>
-            <TableHead className="text-right">Đã dùng</TableHead>
-            <TableHead>Trạng thái</TableHead>
-            <TableHead className="w-12"></TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {mockVouchers.map((voucher) => (
-            <TableRow key={voucher.id}>
-              <TableCell>
-                <div className="font-mono font-bold text-primary">{voucher.code}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  {voucher.startDate} - {voucher.endDate}
-                </div>
-              </TableCell>
-              <TableCell>{getTypeBadge(voucher.type)}</TableCell>
-              <TableCell className="font-medium">{formatValue(voucher.type, voucher.value)}</TableCell>
-              <TableCell>{voucher.minOrder > 0 ? formatPrice(voucher.minOrder) : "Không"}</TableCell>
-              <TableCell className="text-right">{voucher.quantity}</TableCell>
-              <TableCell className="text-right">
-                <span className={voucher.used >= voucher.quantity ? "text-destructive font-medium" : ""}>
-                  {voucher.used}
-                </span>
-              </TableCell>
-              <TableCell>{getStatusBadge(voucher.status, voucher.used, voucher.quantity)}</TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Chỉnh sửa
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Sao chép mã
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Xóa
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
+    <>
+      <div className="rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Mã voucher</TableHead>
+              <TableHead>Loại</TableHead>
+              <TableHead>Giá trị</TableHead>
+              <TableHead>Đơn tối thiểu</TableHead>
+              <TableHead className="text-right">Số lượng</TableHead>
+              <TableHead className="text-right">Đã dùng</TableHead>
+              <TableHead>Trạng thái</TableHead>
+              <TableHead className="w-12"></TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {mockVouchers.map((voucher) => (
+              <TableRow key={voucher.id}>
+                <TableCell>
+                  <div className="font-mono font-bold text-primary">{voucher.code}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {voucher.startDate} - {voucher.endDate}
+                  </div>
+                </TableCell>
+                <TableCell>{getTypeBadge(voucher.type)}</TableCell>
+                <TableCell className="font-medium">{formatValue(voucher.type, voucher.value)}</TableCell>
+                <TableCell>{voucher.minOrder > 0 ? formatPrice(voucher.minOrder) : "Không"}</TableCell>
+                <TableCell className="text-right">{voucher.quantity}</TableCell>
+                <TableCell className="text-right">
+                  <span className={voucher.used >= voucher.quantity ? "text-destructive font-medium" : ""}>
+                    {voucher.used}
+                  </span>
+                </TableCell>
+                <TableCell>{getStatusBadge(voucher.status, voucher.used, voucher.quantity)}</TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Chỉnh sửa
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Copy className="h-4 w-4 mr-2" />
+                        Sao chép mã
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteVoucher(voucher)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Xóa
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <AlertDialog open={!!deleteVoucher} onOpenChange={(open) => { if (!open) setDeleteVoucher(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa voucher?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn chắc chắn muốn xóa mã "{deleteVoucher?.code}"? Hành động không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="outline">Hủy</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button className="text-destructive" onClick={() => setDeleteVoucher(null)}>
+                Xóa
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

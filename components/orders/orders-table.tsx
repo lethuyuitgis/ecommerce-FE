@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,59 +14,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Eye, Printer, CheckCircle, XCircle, Truck } from "lucide-react"
-
-const mockOrders = [
-  {
-    id: "DH001234",
-    customer: "Nguyễn Văn A",
-    phone: "0901234567",
-    products: 3,
-    total: 31500000,
-    status: "pending",
-    date: "2024-01-07 14:30",
-    payment: "COD",
-  },
-  {
-    id: "DH001233",
-    customer: "Trần Thị B",
-    phone: "0912345678",
-    products: 1,
-    total: 29990000,
-    status: "processing",
-    date: "2024-01-07 10:15",
-    payment: "Chuyển khoản",
-  },
-  {
-    id: "DH001232",
-    customer: "Lê Văn C",
-    phone: "0923456789",
-    products: 2,
-    total: 750000,
-    status: "shipping",
-    date: "2024-01-06 16:20",
-    payment: "COD",
-  },
-  {
-    id: "DH001231",
-    customer: "Phạm Thị D",
-    phone: "0934567890",
-    products: 5,
-    total: 2450000,
-    status: "completed",
-    date: "2024-01-06 09:45",
-    payment: "Chuyển khoản",
-  },
-  {
-    id: "DH001230",
-    customer: "Hoàng Văn E",
-    phone: "0945678901",
-    products: 1,
-    total: 350000,
-    status: "cancelled",
-    date: "2024-01-05 11:00",
-    payment: "COD",
-  },
-]
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { ordersApi, Order } from "@/lib/api/orders"
+import { toast } from "sonner"
 
 interface OrdersTableProps {
   status: string
@@ -74,14 +33,46 @@ interface OrdersTableProps {
 
 export function OrdersTable({ status }: OrdersTableProps) {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [confirm, setConfirm] = useState<{ orderId: string, action: 'CONFIRM' | 'CANCEL' | 'SHIP' } | null>(null)
 
-  const filteredOrders = status === "all" ? mockOrders : mockOrders.filter((order) => order.status === status)
+  useEffect(() => {
+    fetchOrders()
+  }, [status])
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      const response = await ordersApi.getSellerOrders(0, 100, status)
+      if (response.success && response.data) {
+        setOrders(response.data.content || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error)
+      toast.error("Tải danh sách đơn hàng thất bại")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
+    try {
+      const response = await ordersApi.updateOrderStatus(orderId, newStatus)
+      if (response.success) {
+        toast.success("Cập nhật trạng thái thành công")
+        fetchOrders()
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Cập nhật trạng thái thất bại")
+    }
+  }
 
   const toggleSelectAll = () => {
-    if (selectedOrders.length === filteredOrders.length) {
+    if (selectedOrders.length === orders.length) {
       setSelectedOrders([])
     } else {
-      setSelectedOrders(filteredOrders.map((o) => o.id))
+      setSelectedOrders(orders.map((o) => o.id))
     }
   }
 
@@ -97,20 +88,32 @@ export function OrdersTable({ status }: OrdersTableProps) {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
+    const statusUpper = status.toUpperCase()
+    switch (statusUpper) {
+      case "PENDING":
         return <Badge variant="secondary">Chờ xác nhận</Badge>
-      case "processing":
+      case "PROCESSING":
         return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Đang xử lý</Badge>
-      case "shipping":
+      case "SHIPPING":
         return <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100">Đang giao</Badge>
-      case "completed":
+      case "DELIVERED":
+      case "COMPLETED":
         return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Hoàn thành</Badge>
-      case "cancelled":
+      case "CANCELLED":
         return <Badge variant="destructive">Đã hủy</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
     }
+  }
+
+  const getPaymentMethodLabel = (method: string) => {
+    const methodMap: Record<string, string> = {
+      cod: "COD",
+      transfer: "Chuyển khoản",
+      momo: "MoMo",
+      zalopay: "ZaloPay",
+    }
+    return methodMap[method.toLowerCase()] || method
   }
 
   return (
@@ -132,7 +135,7 @@ export function OrdersTable({ status }: OrdersTableProps) {
             <TableRow>
               <TableHead className="w-12">
                 <Checkbox
-                  checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
+                  checked={selectedOrders.length === orders.length && orders.length > 0}
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
@@ -147,14 +150,20 @@ export function OrdersTable({ status }: OrdersTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredOrders.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  Đang tải đơn hàng...
+                </TableCell>
+              </TableRow>
+            ) : orders.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
             ) : (
-              filteredOrders.map((order) => (
+              orders.map((order) => (
                 <TableRow key={order.id}>
                   <TableCell>
                     <Checkbox
@@ -164,20 +173,24 @@ export function OrdersTable({ status }: OrdersTableProps) {
                   </TableCell>
                   <TableCell>
                     <Link href={`/seller/orders/${order.id}`} className="font-medium hover:text-primary">
-                      {order.id}
+                      {order.orderNumber || order.id}
                     </Link>
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{order.customer}</div>
-                      <div className="text-sm text-muted-foreground">{order.phone}</div>
+                      <div className="font-medium">{order.customerName}</div>
+                      <div className="text-sm text-muted-foreground">{order.customerId}</div>
                     </div>
                   </TableCell>
-                  <TableCell>{order.products} sản phẩm</TableCell>
-                  <TableCell className="text-right font-medium">{formatPrice(order.total)}</TableCell>
-                  <TableCell>{order.payment}</TableCell>
+                  <TableCell>{order.items?.length || 0} sản phẩm</TableCell>
+                  <TableCell className="text-right font-medium">
+                    ₫{(order.finalTotal || order.totalPrice || 0).toLocaleString("vi-VN")}
+                  </TableCell>
+                  <TableCell>{getPaymentMethodLabel(order.paymentMethod)}</TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{order.date}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(order.createdAt).toLocaleString("vi-VN")}
+                  </TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -196,23 +209,26 @@ export function OrdersTable({ status }: OrdersTableProps) {
                           <Printer className="h-4 w-4 mr-2" />
                           In đơn hàng
                         </DropdownMenuItem>
-                        {order.status === "pending" && (
+                        {order.status === "PENDING" && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setConfirm({ orderId: order.id, action: "CONFIRM" })}>
                               <CheckCircle className="h-4 w-4 mr-2" />
                               Xác nhận đơn
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-destructive">
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => setConfirm({ orderId: order.id, action: "CANCEL" })}
+                            >
                               <XCircle className="h-4 w-4 mr-2" />
                               Hủy đơn
                             </DropdownMenuItem>
                           </>
                         )}
-                        {order.status === "processing" && (
+                        {order.status === "PROCESSING" && (
                           <>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setConfirm({ orderId: order.id, action: "SHIP" })}>
                               <Truck className="h-4 w-4 mr-2" />
                               Giao cho shipper
                             </DropdownMenuItem>
@@ -227,6 +243,40 @@ export function OrdersTable({ status }: OrdersTableProps) {
           </TableBody>
         </Table>
       </div>
+      <AlertDialog open={!!confirm} onOpenChange={(open) => { if (!open) setConfirm(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirm?.action === 'CONFIRM' ? 'Xác nhận đơn hàng?' :
+                confirm?.action === 'CANCEL' ? 'Hủy đơn hàng?' :
+                  'Giao cho shipper?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động sẽ cập nhật trạng thái đơn hàng.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button variant="outline">Hủy</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                onClick={async () => {
+                  if (!confirm) return
+                  const { orderId, action } = confirm
+                  setConfirm(null)
+                  await handleUpdateStatus(orderId,
+                    action === 'CONFIRM' ? 'PROCESSING' :
+                      action === 'CANCEL' ? 'CANCELLED' : 'SHIPPING'
+                  )
+                }}
+              >
+                Xác nhận
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
