@@ -46,7 +46,7 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link href={`/product/${product.id}`}>
       <Card
-        className="group relative overflow-hidden transition-shadow hover:shadow-lg"
+        className="group relative overflow-hidden transition-shadow hover:shadow-lg !py-0"
         onMouseEnter={() => setShowAddButton(true)}
         onMouseLeave={() => setShowAddButton(false)}
       >

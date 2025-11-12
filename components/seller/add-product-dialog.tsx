@@ -14,7 +14,8 @@ import { useToast } from "@/hooks/use-toast"
 import { apiClientWithFile } from "@/lib/api/client"
 import { categoriesApi, Category } from "@/lib/api/categories"
 import { shippingApi, ShippingMethod } from "@/lib/api/shipping"
-import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { RichTextEditor } from "../ui/rick-text-editor"
+import { Textarea } from "../ui/textarea"
 
 interface AddProductDialogProps {
   onClose?: () => void

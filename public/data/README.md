@@ -43,3 +43,4 @@ import products from '@/public/data/products.json'
 - Tất cả UUID đều dùng định dạng `CHAR(36)` trong database
 - Password đã được hash bằng BCrypt
 - Foreign keys đã được liên kết đúng với các bảng liên quan
+

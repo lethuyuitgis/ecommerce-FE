@@ -143,3 +143,4 @@ export function useSearchProducts(keyword: string, page: number = 0, size: numbe
 
   return { products, loading, error }
 }
+

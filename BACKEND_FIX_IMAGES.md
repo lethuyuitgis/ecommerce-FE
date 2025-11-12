@@ -202,3 +202,4 @@ Response phải có dạng:
 - Nếu dùng MinIO, URL có thể là: `http://localhost:9000/bucket-name/path/to/image.jpg`
 - Frontend đã có logic transform để xử lý nhiều format khác nhau, nhưng tốt nhất là trả về đúng format `primaryImage` và `images[]`
 
+

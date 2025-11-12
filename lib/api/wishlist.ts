@@ -23,3 +23,4 @@ export const wishlistApi = {
     return apiClient<boolean>(`/wishlist/${productId}/check`)
   },
 }
+

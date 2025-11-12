@@ -11,7 +11,8 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "ShopCuaThuy - Mua Sắm Trực Tuyến",
   description: "Nền tảng thương mại điện tử hàng đầu Việt Nam",
-  generator: "v0.app",
+  generator: "thuy",
+  icons: ""
 }
 
 export default function RootLayout({

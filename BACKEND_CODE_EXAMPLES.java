@@ -302,3 +302,4 @@ public class ProductImage {
     public void setIsPrimary(Boolean isPrimary) { this.isPrimary = isPrimary; }
 }
 
+
