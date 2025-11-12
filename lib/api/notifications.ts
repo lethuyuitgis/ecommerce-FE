@@ -2,12 +2,13 @@ import { apiClient, ApiResponse } from './client'
 
 export interface Notification {
   id: string
-  userId: string
   type: string
   title: string
   message: string
-  link?: string
+  relatedId?: string
+  linkUrl?: string
   imageUrl?: string
+  data?: string
   isRead: boolean
   createdAt: string
 }

@@ -1,36 +1,49 @@
-import { CheckCircle, Package, Truck, Home } from "lucide-react"
+import { CheckCircle, Package, Truck, Home, XCircle } from "lucide-react"
 
 interface OrderTimelineProps {
   status: string
+  createdAt?: string
 }
 
-export function OrderTimeline({ status }: OrderTimelineProps) {
+export function OrderTimeline({ status, createdAt }: OrderTimelineProps) {
+  const statusLower = status?.toLowerCase() || "pending"
+  const orderDate = createdAt ? new Date(createdAt).toLocaleString("vi-VN") : ""
+
   const timeline = [
     {
       status: "pending",
       label: "Đơn hàng đã đặt",
-      time: "2024-01-07 14:30",
+      time: orderDate,
       completed: true,
     },
     {
       status: "processing",
       label: "Đã xác nhận",
-      time: status !== "pending" ? "2024-01-07 15:00" : undefined,
-      completed: status !== "pending",
+      time: statusLower !== "pending" ? orderDate : undefined,
+      completed: statusLower !== "pending" && statusLower !== "cancelled",
     },
     {
       status: "shipping",
       label: "Đang giao hàng",
-      time: status === "shipping" || status === "completed" ? "2024-01-08 09:00" : undefined,
-      completed: status === "shipping" || status === "completed",
+      time: (statusLower === "shipping" || statusLower === "delivered" || statusLower === "completed") ? orderDate : undefined,
+      completed: statusLower === "shipping" || statusLower === "delivered" || statusLower === "completed",
     },
     {
       status: "completed",
       label: "Đã giao hàng",
-      time: status === "completed" ? "2024-01-08 16:30" : undefined,
-      completed: status === "completed",
+      time: (statusLower === "delivered" || statusLower === "completed") ? orderDate : undefined,
+      completed: statusLower === "delivered" || statusLower === "completed",
     },
   ]
+
+  if (statusLower === "cancelled") {
+    timeline.push({
+      status: "cancelled",
+      label: "Đã hủy",
+      time: orderDate,
+      completed: true,
+    })
+  }
 
   const getIcon = (timelineStatus: string) => {
     switch (timelineStatus) {
@@ -42,6 +55,8 @@ export function OrderTimeline({ status }: OrderTimelineProps) {
         return Truck
       case "completed":
         return Home
+      case "cancelled":
+        return XCircle
       default:
         return Package
     }
@@ -55,9 +70,8 @@ export function OrderTimeline({ status }: OrderTimelineProps) {
           <div key={item.status} className="flex gap-4">
             <div className="flex flex-col items-center">
               <div
-                className={`rounded-full p-2 ${
-                  item.completed ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}
+                className={`rounded-full p-2 ${item.completed ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  }`}
               >
                 <Icon className="h-5 w-5" />
               </div>

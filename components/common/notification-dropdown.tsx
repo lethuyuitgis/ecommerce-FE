@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Client } from "@stomp/stompjs"
 import { Bell, Package, Tag, TrendingUp, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -13,24 +14,103 @@ import { notificationsApi, Notification } from "@/lib/api/notifications"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
 
+const MAX_NOTIFICATIONS = 50
+
+function buildWebSocketUrl(): string {
+  if (typeof window === "undefined") {
+    return ""
+  }
+  const explicit = process.env.NEXT_PUBLIC_WS_URL
+  if (explicit) {
+    return explicit
+  }
+  const base = (process.env.NEXT_PUBLIC_API_URL || window.location.origin).replace(/\/$/, "")
+  const normalized = base.replace(/\/api$/, "")
+  const protocol = normalized.startsWith("https") ? "wss" : "ws"
+  return normalized.replace(/^https?/, protocol) + "/ws"
+}
+
 export function NotificationDropdown() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const clientRef = useRef<Client | null>(null)
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchNotifications()
       fetchUnreadCount()
+    } else {
+      setNotifications([])
+      setUnreadCount(0)
+      if (clientRef.current) {
+        clientRef.current.deactivate()
+        clientRef.current = null
+      }
     }
   }, [isAuthenticated])
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?.userId) {
+      return
+    }
+
+    const brokerURL = buildWebSocketUrl()
+    if (!brokerURL) {
+      return
+    }
+
+    const client = new Client({
+      brokerURL,
+      reconnectDelay: 5000,
+      debug: process.env.NODE_ENV === "development" ? (msg) => console.debug("[notifications][ws]", msg) : undefined,
+    })
+
+    client.onConnect = () => {
+      client.subscribe(`/topic/users/${user.userId}`, (message) => {
+        try {
+          const payload: Notification = JSON.parse(message.body)
+          setNotifications((prev) => {
+            const existingIndex = prev.findIndex((n) => n.id === payload.id)
+            if (existingIndex >= 0) {
+              const clone = [...prev]
+              clone[existingIndex] = payload
+              return clone
+            }
+            return [payload, ...prev].slice(0, MAX_NOTIFICATIONS)
+          })
+          if (!payload.isRead) {
+            setUnreadCount((prev) => prev + 1)
+          }
+        } catch (error) {
+          console.error("Failed to parse notification message", error)
+        }
+      })
+    }
+
+    client.onStompError = (frame) => {
+      console.error("STOMP error", frame)
+    }
+
+    client.onWebSocketError = (event) => {
+      console.error("Websocket error", event)
+    }
+
+    client.activate()
+    clientRef.current = client
+
+    return () => {
+      client.deactivate()
+      clientRef.current = null
+    }
+  }, [isAuthenticated, user?.userId])
 
   const fetchNotifications = async () => {
     try {
       setLoading(true)
-      const response = await notificationsApi.getNotifications(0, 20)
+      const response = await notificationsApi.getNotifications(0, MAX_NOTIFICATIONS)
       if (response.success && response.data) {
         setNotifications(response.data.content)
       }
@@ -45,7 +125,7 @@ export function NotificationDropdown() {
     try {
       const response = await notificationsApi.getUnreadCount()
       if (response.success && response.data !== undefined) {
-        setUnreadCount(response.data)
+        setUnreadCount(Number(response.data) || 0)
       }
     } catch (error) {
       console.error('Failed to fetch unread count:', error)
@@ -92,21 +172,31 @@ export function NotificationDropdown() {
   }
 
   const getIcon = (type: string): React.ReactNode => {
-    switch (type?.toUpperCase()) {
-      case "ORDER":
-        return <Package className="w-5 h-5 text-blue-500" />
-      case "PROMOTION":
-        return <Tag className="w-5 h-5 text-red-500" />
-      case "SYSTEM":
-        return <TrendingUp className="w-5 h-5 text-green-500" />
-      default:
-        return <Bell className="w-5 h-5" />
+    const normalized = type?.toUpperCase()
+    if (normalized === "ORDER" || normalized === "ORDER_NEW" || normalized === "ORDER_STATUS") {
+      return <Package className="w-5 h-5 text-blue-500" />
     }
+    if (normalized === "PROMOTION") {
+      return <Tag className="w-5 h-5 text-red-500" />
+    }
+    if (normalized === "SYSTEM") {
+      return <TrendingUp className="w-5 h-5 text-green-500" />
+    }
+    return <Bell className="w-5 h-5" />
   }
 
-  const filterNotifications = (type?: string) => {
-    if (!type) return notifications
-    return notifications.filter((n) => n.type === type)
+  const filterNotifications = (category?: "ORDER" | "PROMOTION") => {
+    if (!category) return notifications
+    if (category === "ORDER") {
+      return notifications.filter((n) => {
+        const normalized = n.type?.toUpperCase()
+        return normalized === "ORDER" || normalized === "ORDER_NEW" || normalized === "ORDER_STATUS"
+      })
+    }
+    if (category === "PROMOTION") {
+      return notifications.filter((n) => n.type?.toUpperCase() === "PROMOTION")
+    }
+    return notifications
   }
 
   const formatTime = (dateString: string) => {

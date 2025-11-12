@@ -260,7 +260,7 @@ export function LoginForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
+        <div className="flex flex-col gap-2">
           <Label htmlFor="email">Email / Số điện thoại</Label>
           <Input
             id="email"
@@ -272,7 +272,7 @@ export function LoginForm() {
           />
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <Label htmlFor="password">Mật khẩu</Label>
           <div className="relative">
             <Input
@@ -357,7 +357,7 @@ export function LoginForm() {
         </Button>
       </div>
 
-      <div id="google-signin-button" className="mt-3 w-full"></div>
+      <div id="google-signin-button" className="mt-3 w-full "></div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Bạn chưa có tài khoản?{" "}

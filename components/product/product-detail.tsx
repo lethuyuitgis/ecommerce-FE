@@ -219,7 +219,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   <Plus className="h-4 w-4" />
                 </button>
               </div>
-              <span className="text-sm text-muted-foreground">Còn 999 sản phẩm</span>
+              <span className="text-sm text-muted-foreground">
+                Còn {product.quantity || 0} sản phẩm
+              </span>
             </div>
           </div>
 

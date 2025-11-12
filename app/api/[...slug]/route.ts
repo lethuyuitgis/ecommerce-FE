@@ -85,7 +85,14 @@ async function handleRequest(
     }
 
     // Forward the request to the backend
-    const backendUrl = `${BACKEND_URL}/${path}${queryString || ''}`
+    // Ensure backend URL includes the API prefix expected by Spring controllers.
+    // If BACKEND_URL already contains '/api' (or '/api/...'), keep it.
+    // Otherwise, prepend '/api' before the forwarded path.
+    const hasApiPrefix = /\/api(\/|$)/.test(BACKEND_URL)
+    const normalizedBase = BACKEND_URL.replace(/\/+$/, '')
+    const normalizedPath = path.replace(/^\/+/, '')
+    const finalPath = hasApiPrefix ? normalizedPath : `api/${normalizedPath}`
+    const backendUrl = `${normalizedBase}/${finalPath}${queryString || ''}`
 
     // Forward authorization header
     const authHeader = request.headers.get('authorization')
@@ -99,11 +106,25 @@ async function handleRequest(
       headers['X-User-Id'] = userIdHeader
     }
 
-    const response = await fetch(backendUrl, {
+    // Try primary URL; if 404, try alternate prefix variant to be resilient to backend base config.
+    let response = await fetch(backendUrl, {
       method,
       headers,
       body: body || undefined,
     })
+    if (response.status === 404) {
+      // Flip api prefix existence and retry once
+      const flip = hasApiPrefix
+        ? normalizedBase.replace(/\/api(\/|$)/, '/') // remove /api
+        : `${normalizedBase}/api`                    // add /api
+      const altBase = flip.replace(/\/+$/, '')
+      const altBackendUrl = `${altBase}/${normalizedPath}${queryString || ''}`
+      response = await fetch(altBackendUrl, {
+        method,
+        headers,
+        body: body || undefined,
+      })
+    }
 
     // Check if response is JSON
     const contentTypeHeader = response.headers.get('content-type')

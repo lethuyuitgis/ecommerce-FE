@@ -12,7 +12,7 @@ interface CheckoutSummaryProps {
 }
 
 export function CheckoutSummary({ onSubmit, loading = false }: CheckoutSummaryProps) {
-  const { cartItems, totalPrice } = useCart()
+  const { cartItems } = useCart()
   const [activePromotions, setActivePromotions] = useState<Promotion[]>([])
 
   useEffect(() => {
@@ -25,9 +25,16 @@ export function CheckoutSummary({ onSubmit, loading = false }: CheckoutSummaryPr
     return () => { mounted = false }
   }, [])
 
+  // Calculate subtotal from cartItems to ensure accuracy
+  const subtotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      const price = item.variantPrice || item.productPrice || 0
+      return sum + (price * item.quantity)
+    }, 0)
+  }, [cartItems])
+
   const computedDiscount = useMemo(() => {
     if (!activePromotions.length) return 0
-    const subtotal = totalPrice
     // Chọn promo mang lại giảm giá cao nhất và thỏa minPurchaseAmount
     let best = 0
     activePromotions.forEach(p => {
@@ -43,11 +50,10 @@ export function CheckoutSummary({ onSubmit, loading = false }: CheckoutSummaryPr
       if (d > best) best = d
     })
     return best
-  }, [activePromotions, totalPrice])
+  }, [activePromotions, subtotal])
 
   const shipping = 30000
   const discount = computedDiscount
-  const subtotal = totalPrice
   const total = subtotal + shipping - discount
 
   return (

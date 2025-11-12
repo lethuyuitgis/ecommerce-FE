@@ -96,6 +96,17 @@ export interface CrawlCategoryResponse {
   errors?: string[]
 }
 
+export interface SellerOverview {
+  totalRevenue: number
+  revenueChange: string
+  newOrders: number
+  newOrdersChange: string
+  productsCount: number
+  productsChange: string
+  views: number
+  viewsChange: string
+}
+
 export const sellerApi = {
   getProfile: async (): Promise<ApiResponse<Seller>> => {
     return apiClient<Seller>('/seller/profile')
@@ -113,6 +124,12 @@ export const sellerApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  },
+
+  // Overview dashboard
+  getOverview: async (): Promise<ApiResponse<SellerOverview>> => {
+    // Backend should expose /api/seller/overview
+    return apiClient<SellerOverview>('/seller/overview')
   },
 
   getProducts: async (page: number = 0, size: number = 20): Promise<ApiResponse<SellerProductPage>> => {

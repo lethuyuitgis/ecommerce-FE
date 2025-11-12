@@ -36,9 +36,11 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     price: product.price,
     originalPrice: product.comparePrice,
     image: product.primaryImage || product.images?.[0] || '/placeholder.svg',
+    images: product.images || [product.primaryImage || '/placeholder.svg'].filter(Boolean),
     rating: product.rating || 0,
     sold: product.totalSold || 0,
     category: product.categoryName,
+    quantity: product.quantity || 0,
   }
 
   return (

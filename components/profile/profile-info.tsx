@@ -41,8 +41,8 @@ export function ProfileInfo() {
           fullName: response.data.fullName || "",
           email: response.data.email || "",
           phone: response.data.phone || "",
-          gender: "male", // Default, update if user has gender field
-          birthDate: "", // Update if user has birthDate field
+          gender: response.data.gender || "male",
+          birthDate: response.data.birthDate || "",
         })
       }
     } catch (error) {
@@ -86,10 +86,20 @@ export function ProfileInfo() {
       const response = await userApi.updateProfile({
         fullName: formData.fullName,
         phone: formData.phone,
+        gender: formData.gender,
+        birthDate: formData.birthDate || undefined,
       })
       if (response.success && response.data) {
         setUser(response.data)
         toast.success("Cập nhật thông tin thành công")
+        // Update form data with response
+        setFormData({
+          fullName: response.data.fullName || "",
+          email: response.data.email || "",
+          phone: response.data.phone || "",
+          gender: response.data.gender || "male",
+          birthDate: response.data.birthDate || "",
+        })
       }
     } catch (error: any) {
       toast.error(error.message || "Cập nhật thông tin thất bại")
@@ -118,23 +128,23 @@ export function ProfileInfo() {
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="fullName">Họ và tên</Label>
               <Input id="fullName" value={formData.fullName} onChange={handleChange} />
             </div>
 
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" value={formData.email} onChange={handleChange} disabled />
-              <p className="mt-1 text-xs text-muted-foreground">Email không thể thay đổi</p>
+              <p className="text-xs text-muted-foreground">Email không thể thay đổi</p>
             </div>
 
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="phone">Số điện thoại</Label>
               <Input id="phone" type="tel" value={formData.phone} onChange={handleChange} />
             </div>
 
-            <div>
+            <div className="flex flex-col gap-2">
               <Label>Giới tính</Label>
               <RadioGroup
                 value={formData.gender}
@@ -163,7 +173,7 @@ export function ProfileInfo() {
               </RadioGroup>
             </div>
 
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="birthDate">Ngày sinh</Label>
               <Input id="birthDate" type="date" value={formData.birthDate} onChange={handleChange} />
             </div>

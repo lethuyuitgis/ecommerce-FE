@@ -1,3 +1,5 @@
+"use client"
+
 import { OrdersTable } from "@/components/orders/orders-table"
 import { SellerSidebar } from "@/components/seller/seller-sidebar"
 import { Button } from "@/components/ui/button"

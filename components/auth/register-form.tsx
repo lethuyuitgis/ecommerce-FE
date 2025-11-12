@@ -284,7 +284,7 @@ export function RegisterForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
+        <div className="flex flex-col gap-2">
           <Label htmlFor="fullName">Họ và tên</Label>
           <Input
             id="fullName"
@@ -296,7 +296,7 @@ export function RegisterForm() {
           />
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <Label htmlFor="email">Email</Label>
           <Input
             id="email"
@@ -308,7 +308,7 @@ export function RegisterForm() {
           />
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <Label htmlFor="phone">Số điện thoại</Label>
           <Input
             id="phone"
@@ -320,7 +320,7 @@ export function RegisterForm() {
           />
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <Label htmlFor="password">Mật khẩu</Label>
           <div className="relative">
             <Input
@@ -341,7 +341,7 @@ export function RegisterForm() {
           </div>
         </div>
 
-        <div>
+        <div className="flex flex-col gap-2">
           <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
           <div className="relative">
             <Input
@@ -430,7 +430,7 @@ export function RegisterForm() {
         </Button>
       </div>
 
-      <div id="google-signin-button-register" className="mt-3 w-full"></div>
+      <div id="google-signin-button-register" className="mt-3 w-full "></div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Bạn đã có tài khoản?{" "}

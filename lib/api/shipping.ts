@@ -11,7 +11,8 @@ export interface ShippingMethod {
 
 export const shippingApi = {
   getMethods: async (): Promise<ApiResponse<ShippingMethod[]>> => {
-    return apiClient<ShippingMethod[]>('/shipping-methods')
+    // Backend mapping: /api/shipping/methods
+    return apiClient<ShippingMethod[]>('/shipping/methods')
   },
 }
 

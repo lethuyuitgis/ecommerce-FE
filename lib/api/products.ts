@@ -19,8 +19,21 @@ export interface Product {
   categoryName?: string
   sellerId?: string
   sellerName?: string
+  // Image fields - support multiple formats from backend
   images?: string[]
   primaryImage?: string
+  // Alternative field names from backend
+  imageUrl?: string
+  imageUrls?: string[]
+  productImages?: Array<{
+    id?: string
+    imageUrl?: string
+    url?: string
+    image_url?: string
+    isPrimary?: boolean
+    is_primary?: boolean
+    displayOrder?: number
+  }>
 }
 
 export interface ProductPage {

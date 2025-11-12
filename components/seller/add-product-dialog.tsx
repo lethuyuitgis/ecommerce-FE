@@ -2,17 +2,19 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { X, Upload, Plus, Minus, Globe, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { sellerApi } from "@/lib/api/seller"
 import { useToast } from "@/hooks/use-toast"
 import { apiClientWithFile } from "@/lib/api/client"
+import { categoriesApi, Category } from "@/lib/api/categories"
+import { shippingApi, ShippingMethod } from "@/lib/api/shipping"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 
 interface AddProductDialogProps {
   onClose?: () => void
@@ -26,6 +28,9 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState<string>("")
+  const [categories, setCategories] = useState<Category[]>([])
+  const [shippingMethod, setShippingMethod] = useState<string>("")
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [crawlUrl, setCrawlUrl] = useState("")
   const [crawlUrls, setCrawlUrls] = useState("")
@@ -41,6 +46,20 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
   const [activeTab, setActiveTab] = useState("manual")
   const [isOpen, setIsOpen] = useState(!children) // If children provided, start closed. Otherwise, start open.
   const { toast } = useToast()
+
+  useEffect(() => {
+    let mounted = true
+    Promise.all([categoriesApi.getAll(), shippingApi.getMethods()])
+      .then(([catResp, shipResp]) => {
+        if (!mounted) return
+        if (catResp.success && catResp.data) setCategories(catResp.data)
+        if (shipResp.success && shipResp.data) setShippingMethods(shipResp.data)
+      })
+      .catch(() => { })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const handleClose = () => {
     setIsOpen(false)
@@ -354,14 +373,17 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
           ? Math.min(...preparedVariants.map(v => v.price || 0).filter(n => !isNaN(n)))
           : 0
 
+      const chosenCategory = categories.find((c) => c.id === category)
       const resp = await sellerApi.createProduct({
         name,
         description,
         price: productPrice,
-        category: category,
+        categoryId: category || undefined,
+        categoryName: chosenCategory?.name,
         images: uploadedUrls,
         variants: preparedVariants,
         status: "active",
+        shippingMethodId: shippingMethod || undefined,
       })
 
       if (resp.success) {
@@ -423,11 +445,11 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
               </div>
 
               {crawlMode === "single" ? (
-                <div>
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="crawl-url">
                     URL sản phẩm <span className="text-red-500">*</span>
                   </Label>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2">
                     <Input
                       id="crawl-url"
                       placeholder="Nhập URL sản phẩm (Shopee, Lazada, Tiki, Sendo...)"
@@ -603,7 +625,7 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
                   />
                 </div>
 
-                <div>
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="category">
                     Danh mục <span className="text-red-500">*</span>
                   </Label>
@@ -612,26 +634,24 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
                       <SelectValue placeholder="Chọn danh mục" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fashion-men">Thời Trang Nam</SelectItem>
-                      <SelectItem value="fashion-women">Thời Trang Nữ</SelectItem>
-                      <SelectItem value="electronics">Điện Tử</SelectItem>
-                      <SelectItem value="home">Nhà Cửa & Đời Sống</SelectItem>
+                      {categories.filter((c) => c.isActive !== false).map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="description">
                   Mô tả sản phẩm <span className="text-red-500">*</span>
                 </Label>
-                <Textarea
-                  id="description"
-                  placeholder="Nhập mô tả chi tiết về sản phẩm"
-                  className="min-h-32"
-                  required
+                <RichTextEditor
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={setDescription}
+                  placeholder="Nhập mô tả chi tiết, chèn ảnh và định dạng nội dung..."
                 />
               </div>
 
@@ -662,21 +682,23 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
 
               {/* Shipping */}
               <div className="grid gap-6 md:grid-cols-2">
-                <div>
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="weight">Cân nặng (gram)</Label>
                   <Input id="weight" type="number" placeholder="0" />
                 </div>
 
-                <div>
+                <div className="flex flex-col gap-2">
                   <Label htmlFor="shipping">Phí vận chuyển</Label>
-                  <Select>
+                  <Select value={shippingMethod} onValueChange={setShippingMethod}>
                     <SelectTrigger>
                       <SelectValue placeholder="Chọn phương thức" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="free">Miễn phí vận chuyển</SelectItem>
-                      <SelectItem value="standard">Tiêu chuẩn</SelectItem>
-                      <SelectItem value="express">Nhanh</SelectItem>
+                      {shippingMethods.filter((method) => method.isActive !== false).map((method) => (
+                        <SelectItem key={method.id} value={method.id}>
+                          {method.name}{method.fee > 0 ? ` - ${method.fee.toLocaleString("vi-VN")}₫` : " (Miễn phí)"}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

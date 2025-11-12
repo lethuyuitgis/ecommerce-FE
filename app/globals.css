@@ -124,6 +124,38 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Consistent gap between label and controls across forms */
+  label + input,
+  label + textarea,
+  label + select,
+  label + div,
+  label + div > input,
+  label + div > textarea,
+  label + div > select,
+  label ~ input,
+  label ~ textarea,
+  label ~ select,
+  label ~ div,
+  .space-y-2 label + *,
+  .space-y-2 label ~ * {
+    margin-top: 0.5rem; /* gap-2 */
+  }
+  
+  /* For flex containers with gap-2 */
+  .flex.flex-col.gap-2 label + *,
+  .flex.flex-col.gap-2 label ~ * {
+    margin-top: 0;
+  }
+  
+  /* Ensure DropdownMenu Portal renders correctly - higher than header z-50 */
+  [data-radix-portal] {
+    z-index: 10000 !important;
+  }
+  
+  /* Ensure DropdownMenu content is visible and has high z-index */
+  [data-slot="dropdown-menu-content"] {
+    z-index: 10000 !important;
+  }
 }
 
 @layer utilities {

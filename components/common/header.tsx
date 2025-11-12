@@ -78,7 +78,7 @@ export function Header() {
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/20">
                         <User className="mr-2 h-4 w-4" />
-                        {user?.fullName || user?.email}
+                        {user?.fullName || user?.email || user?.shopName}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-white text-foreground min-w-48">

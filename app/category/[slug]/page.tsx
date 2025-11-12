@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, use } from "react"
+import { useEffect, useState } from "react"
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { ProductGrid } from "@/components/product/product-grid"
@@ -13,12 +13,52 @@ export default function CategoryPage({
   params,
   searchParams,
 }: {
-  params: Promise<{ slug: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  params: Promise<{ slug: string }> | { slug: string }
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }> | { [key: string]: string | string[] | undefined }
 }) {
-  const { slug } = use(params)
-  const resolvedSearchParams = use(searchParams)
+  const [slug, setSlug] = useState<string>("")
+  const [resolvedSearchParams, setResolvedSearchParams] = useState<{ [key: string]: string | string[] | undefined }>({})
+
+  useEffect(() => {
+    // Handle params - could be Promise or object
+    if (params instanceof Promise) {
+      params.then((resolved) => {
+        setSlug(resolved.slug)
+      })
+    } else {
+      setSlug(params.slug)
+    }
+
+    // Handle searchParams - could be Promise or object
+    if (searchParams) {
+      if (searchParams instanceof Promise) {
+        searchParams.then((resolved) => {
+          setResolvedSearchParams(resolved)
+        })
+      } else {
+        setResolvedSearchParams(searchParams)
+      }
+    }
+  }, [params, searchParams])
+
   const { category, loading: categoryLoading } = useCategory(slug)
+
+  // Don't render until slug is ready
+  if (!slug) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="bg-gray-50">
+          <div className="container mx-auto px-4 py-8">
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Đang tải...</p>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
 
   if (categoryLoading) {
     return (
@@ -64,7 +104,7 @@ export default function CategoryPage({
         />
         <div className="container mx-auto px-4 py-8">
           <div className="flex flex-col lg:flex-row gap-6">
-            <aside className="lg:w-64 flex-shrink-0">
+            <aside className="lg:w-64 shrink-0">
               <CategoryFilters
                 subcategories={category.subcategories || []}
                 currentFilters={resolvedSearchParams}

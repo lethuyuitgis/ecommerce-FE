@@ -1,6 +1,6 @@
-import { Header } from "@/components/header"
-import { Footer } from "@/components/footer"
-import { OrderDetail } from "@/components/order-detail"
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
+import { OrderDetail } from "@/components/orders/order-detail"
 
 export default function OrderDetailPage({ params }: { params: { id: string } }) {
   return (

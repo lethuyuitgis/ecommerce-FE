@@ -48,7 +48,14 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id-here
 9. Thêm **Valid OAuth Redirect URIs**:
    - `http://localhost:3000` (cho development)
    - `https://yourdomain.com` (cho production)
-10. Vào **Settings** > **Basic** > cuộn xuống phần **Data Deletion Instructions URL**:
+10. Vào **Products** > **Facebook Login** > **Settings** > **Permissions and Features**:
+    - Đảm bảo **email** permission đã được thêm vào
+    - Nếu chưa có, click **Add Permissions** và thêm `email`
+    - Lưu ý: Permission `public_profile` là mặc định và luôn có sẵn
+    - Nếu app ở Development Mode, chỉ có thể test với test users
+    - Để sử dụng với users thật, cần submit app review cho `email` permission
+
+11. Vào **Settings** > **Basic** > cuộn xuống phần **Data Deletion Instructions URL**:
     - **BẮT BUỘC** để submit app review hoặc chuyển sang Live Mode
     - Có 2 lựa chọn:
       
@@ -69,7 +76,7 @@ NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id-here
     - Lưu ý: 
       - URL phải là HTTPS trong production
       - Có thể sử dụng cả hai, nhưng ít nhất phải có một trong hai
-11. Copy **App ID** và **App Secret**
+12. Copy **App ID** và **App Secret**
 
 ### Bước 2: Thêm App ID vào file .env.local
 
@@ -109,6 +116,11 @@ FACEBOOK_APP_SECRET=your-facebook-app-secret-here
 2. **Facebook OAuth**:
    - Đảm bảo app đã được chuyển sang **Live Mode** nếu muốn test với người dùng thật
    - Thêm test users trong **Roles** > **Test Users** nếu app đang ở **Development Mode**
+   - **Email Permission**: 
+     - Nếu thấy warning "Invalid Scopes: email", đảm bảo đã thêm `email` permission trong **Products** > **Facebook Login** > **Settings** > **Permissions and Features**
+     - Permission `public_profile` là mặc định và luôn có sẵn
+     - Trong Development Mode, chỉ có thể test với test users
+     - Để sử dụng với users thật, cần submit app review cho `email` permission
    - **Data Deletion Callback URL**: 
      - **BẮT BUỘC** để submit app review
      - URL endpoint: `http://localhost:8080/api/facebook/data-deletion` (development)

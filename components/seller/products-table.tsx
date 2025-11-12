@@ -93,10 +93,57 @@ export function ProductsTable({
       setLoading(true)
       const resp = await productsApi.getSellerProducts(p, s, params)
       if (resp.success && resp.data) {
-        setItems(resp.data.content || [])
+        // Transform products to ensure images are properly mapped
+        const transformedProducts = (resp.data.content || []).map((product: any) => {
+          // Log để debug
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Product from API:', product)
+          }
+
+          // Map các field ảnh có thể có từ backend
+          let primaryImage = product.primaryImage
+          let images = product.images
+
+          // Nếu backend trả về productImages (array of objects)
+          if (product.productImages && Array.isArray(product.productImages)) {
+            images = product.productImages.map((img: any) =>
+              typeof img === 'string' ? img : (img.imageUrl || img.url || img.image_url)
+            )
+            // Lấy ảnh primary (isPrimary = true) hoặc ảnh đầu tiên
+            const primaryImg = product.productImages.find((img: any) => img.isPrimary || img.is_primary)
+            if (primaryImg) {
+              primaryImage = typeof primaryImg === 'string' ? primaryImg : (primaryImg.imageUrl || primaryImg.url || primaryImg.image_url)
+            } else if (images.length > 0) {
+              primaryImage = images[0]
+            }
+          }
+
+          // Nếu backend trả về imageUrls (array)
+          if (product.imageUrls && Array.isArray(product.imageUrls)) {
+            images = product.imageUrls
+            if (!primaryImage && images.length > 0) {
+              primaryImage = images[0]
+            }
+          }
+
+          // Nếu backend trả về imageUrl (single string)
+          if (product.imageUrl && !primaryImage) {
+            primaryImage = product.imageUrl
+            images = [product.imageUrl]
+          }
+
+          return {
+            ...product,
+            primaryImage,
+            images: images || [],
+          }
+        })
+
+        setItems(transformedProducts)
         setTotalPages(resp.data.totalPages || 0)
       }
     } catch (e) {
+      console.error('Error fetching products:', e)
       toast.error("Tải sản phẩm thất bại")
     } finally {
       setLoading(false)
@@ -179,11 +226,12 @@ export function ProductsTable({
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Image
-                      src={product.primaryImage || "/placeholder.svg"}
+                      src={product.primaryImage || product.images?.[0] || "/placeholder.svg"}
                       alt={product.name}
                       width={60}
                       height={60}
                       className="rounded-md object-cover"
+                      unoptimized
                     />
                     <div>
                       <Link href={`/seller/products/${product.id}`} className="font-medium hover:text-primary">

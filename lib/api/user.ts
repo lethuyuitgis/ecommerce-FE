@@ -7,6 +7,8 @@ export interface User {
   phone?: string
   avatarUrl?: string
   userType: string
+  gender?: string
+  birthDate?: string
 }
 
 export interface UserAddress {
@@ -44,6 +46,25 @@ export const userApi = {
     return apiClient<UserAddress>('/users/addresses', {
       method: 'POST',
       body: JSON.stringify(data),
+    })
+  },
+
+  updateAddress: async (addressId: string, data: Partial<UserAddress>): Promise<ApiResponse<UserAddress>> => {
+    return apiClient<UserAddress>(`/users/addresses/${addressId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  },
+
+  deleteAddress: async (addressId: string): Promise<ApiResponse<void>> => {
+    return apiClient<void>(`/users/addresses/${addressId}`, {
+      method: 'DELETE',
+    })
+  },
+
+  setDefaultAddress: async (addressId: string): Promise<ApiResponse<UserAddress>> => {
+    return apiClient<UserAddress>(`/users/addresses/${addressId}/set-default`, {
+      method: 'PUT',
     })
   },
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Package, ShoppingBag, TrendingUp, DollarSign, Plus, Search, Filter, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,37 +11,11 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { SellerSidebar } from "./seller-sidebar"
 import { AddProductDialog } from "./add-product-dialog"
+import { sellerApi, SellerOverview } from "@/lib/api/seller"
 
-const stats = [
-  {
-    title: "Tổng doanh thu",
-    value: "45,231,000đ",
-    change: "+20.1%",
-    icon: DollarSign,
-    color: "text-green-500",
-  },
-  {
-    title: "Đơn hàng mới",
-    value: "23",
-    change: "+12.5%",
-    icon: ShoppingBag,
-    color: "text-blue-500",
-  },
-  {
-    title: "Sản phẩm",
-    value: "156",
-    change: "+5",
-    icon: Package,
-    color: "text-purple-500",
-  },
-  {
-    title: "Lượt xem",
-    value: "12,543",
-    change: "+18.2%",
-    icon: TrendingUp,
-    color: "text-orange-500",
-  },
-]
+function formatCurrencyVND(n: number) {
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(n || 0)
+}
 
 const orders = [
   {
@@ -105,6 +79,19 @@ const products = [
 
 export function SellerDashboard() {
   const [showAddProduct, setShowAddProduct] = useState(false)
+  const [overview, setOverview] = useState<SellerOverview | null>(null)
+  const [loadingOverview, setLoadingOverview] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    sellerApi.getOverview()
+      .then((resp) => {
+        if (!mounted) return
+        if (resp.success) setOverview(resp.data)
+      })
+      .finally(() => setLoadingOverview(false))
+    return () => { mounted = false }
+  }, [])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -162,18 +149,46 @@ export function SellerDashboard() {
         <main className="p-6 space-y-6">
           {/* Stats */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat) => (
-              <Card key={stat.title}>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  <p className="text-xs text-green-600 mt-1">{stat.change} so với tháng trước</p>
-                </CardContent>
-              </Card>
-            ))}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Tổng doanh thu</CardTitle>
+                <DollarSign className="w-5 h-5 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrencyVND(overview?.totalRevenue || 0)}</div>
+                <p className="text-xs text-green-600 mt-1">{overview?.revenueChange || (loadingOverview ? "..." : "+0%")} so với tháng trước</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Đơn hàng mới</CardTitle>
+                <ShoppingBag className="w-5 h-5 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{overview?.newOrders ?? (loadingOverview ? "..." : 0)}</div>
+                <p className="text-xs text-green-600 mt-1">{overview?.newOrdersChange || (loadingOverview ? "..." : "+0%")}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Sản phẩm</CardTitle>
+                <Package className="w-5 h-5 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{overview?.productsCount ?? (loadingOverview ? "..." : 0)}</div>
+                <p className="text-xs text-green-600 mt-1">{overview?.productsChange || (loadingOverview ? "..." : "+0")}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Lượt xem</CardTitle>
+                <TrendingUp className="w-5 h-5 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{overview?.views ?? (loadingOverview ? "..." : 0)}</div>
+                <p className="text-xs text-green-600 mt-1">{overview?.viewsChange || (loadingOverview ? "..." : "+0%")}</p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Tabs */}

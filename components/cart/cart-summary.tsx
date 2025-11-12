@@ -1,14 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Tag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
+import { useCart } from "@/hooks/useCart"
 
 export function CartSummary() {
+  const { cartItems } = useCart()
   const [voucherCode, setVoucherCode] = useState("")
-  const subtotal = 1007000
+
+  // Calculate subtotal from cartItems
+  const subtotal = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      const price = item.variantPrice || item.productPrice || 0
+      return sum + (price * item.quantity)
+    }, 0)
+  }, [cartItems])
+
   const shipping = 30000
   const discount = 0
   const total = subtotal + shipping - discount
@@ -70,7 +80,7 @@ export function CartSummary() {
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-start gap-2">
             <svg
-              className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
+              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -81,7 +91,7 @@ export function CartSummary() {
           </div>
           <div className="flex items-start gap-2">
             <svg
-              className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
+              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -92,7 +102,7 @@ export function CartSummary() {
           </div>
           <div className="flex items-start gap-2">
             <svg
-              className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary"
+              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

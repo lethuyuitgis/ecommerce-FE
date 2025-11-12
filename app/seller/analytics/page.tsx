@@ -1,14 +1,25 @@
+"use client"
+
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Download, TrendingUp, TrendingDown } from "lucide-react"
 import { SellerSidebar } from "@/components/seller/seller-sidebar"
-import { CustomerAnalytics } from "@/components/analytics/customer-analytics"
-import { RevenueChart } from "@/components/analytics/revenue-chart"
-import { TopProductsChart } from "@/components/analytics/top-products-chart"
-import { TrafficAnalytics } from "@/components/analytics/traffic-analytics"
 
+const RevenueChart = dynamic(() => import("@/components/analytics/revenue-chart").then(mod => ({ default: mod.RevenueChart })), { ssr: false, loading: () => <ChartFallback /> })
+const CustomerAnalytics = dynamic(() => import("@/components/analytics/customer-analytics").then(mod => ({ default: mod.CustomerAnalytics })), { ssr: false, loading: () => <ChartFallback /> })
+const TrafficAnalytics = dynamic(() => import("@/components/analytics/traffic-analytics").then(mod => ({ default: mod.TrafficAnalytics })), { ssr: false, loading: () => <ChartFallback /> })
+const TopProductsChart = dynamic(() => import("@/components/analytics/top-products-chart").then(mod => ({ default: mod.TopProductsChart })), { loading: () => <div className="py-12 text-center text-muted-foreground">Đang tải dữ liệu...</div> })
+
+function ChartFallback() {
+  return (
+    <div className="flex h-[350px] items-center justify-center rounded-lg border bg-muted/40">
+      <span className="text-sm text-muted-foreground">Đang tải biểu đồ...</span>
+    </div>
+  )
+}
 
 export default function AnalyticsPage() {
   return (

@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { userApi, UserAddress } from "@/lib/api/user"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { getProvinces, getWardsByProvinceName, type Province, type Ward } from "@/lib/data/vietnam-addresses"
 
 interface CheckoutFormProps {
   selectedAddressId?: string
@@ -34,12 +36,14 @@ export function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState(externalPaymentMethod || "cod")
   const [addresses, setAddresses] = useState<UserAddress[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState<string>(externalSelectedAddressId || "")
+  const [provinces] = useState<Province[]>(getProvinces())
+  const [selectedProvince, setSelectedProvince] = useState<string>("")
+  const [availableWards, setAvailableWards] = useState<Ward[]>([])
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
     email: "",
-    city: "",
-    district: "",
+    province: "",
     ward: "",
     address: "",
     note: externalNote || "",
@@ -72,12 +76,15 @@ export function CheckoutForm({
             setSelectedAddressId(defaultAddressId)
             onAddressChange?.(defaultAddressId)
             const defaultAddress = response.data[0]
+            const provinceName = defaultAddress.province || defaultAddress.city || ""
+            setSelectedProvince(provinceName)
+            const wards = getWardsByProvinceName(provinceName)
+            setAvailableWards(wards)
             setFormData({
               fullName: defaultAddress.fullName,
               phone: defaultAddress.phone,
               email: defaultAddress.email || "",
-              city: defaultAddress.city || defaultAddress.province || "",
-              district: defaultAddress.district,
+              province: provinceName,
               ward: defaultAddress.ward,
               address: defaultAddress.address || defaultAddress.street || "",
               note: externalNote || "",
@@ -100,12 +107,15 @@ export function CheckoutForm({
     onAddressChange?.(addressId)
     const address = addresses.find(a => a.id === addressId)
     if (address) {
+      const provinceName = address.province || address.city || ""
+      setSelectedProvince(provinceName)
+      const wards = getWardsByProvinceName(provinceName)
+      setAvailableWards(wards)
       setFormData({
         fullName: address.fullName,
         phone: address.phone,
         email: address.email || "",
-        city: address.city || address.province || "",
-        district: address.district,
+        province: provinceName,
         ward: address.ward,
         address: address.address || address.street || "",
         note: formData.note,
@@ -134,49 +144,51 @@ export function CheckoutForm({
         </div>
 
         {addresses.length > 0 && !useNewAddress && (
-          <div className="mb-4 space-y-2">
-            {addresses.map((address) => (
-              <div
-                key={address.id}
-                className={`cursor-pointer rounded-lg border p-4 transition-colors ${selectedAddressId === address.id
+          <RadioGroup value={selectedAddressId} onValueChange={handleAddressChange}>
+            <div className="mb-4 space-y-2">
+              {addresses.map((address) => (
+                <div
+                  key={address.id}
+                  className={`cursor-pointer rounded-lg border p-4 transition-colors ${selectedAddressId === address.id
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/50"
-                  }`}
-                onClick={() => handleAddressChange(address.id)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="font-medium text-foreground">{address.fullName}</span>
-                      {address.isDefault && (
-                        <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Mặc định</span>
-                      )}
+                    }`}
+                  onClick={() => handleAddressChange(address.id)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="mb-1 flex items-center gap-2">
+                        <span className="font-medium text-foreground">{address.fullName}</span>
+                        {address.isDefault && (
+                          <span className="rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">Mặc định</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{address.phone}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {address.address || address.street}, {address.ward}, {address.province}
+                      </p>
                     </div>
-                    <p className="text-sm text-muted-foreground">{address.phone}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {address.address || address.street}, {address.ward}, {address.district}, {address.city || address.province}
-                    </p>
+                    <RadioGroupItem value={address.id} id={address.id} />
                   </div>
-                  <RadioGroupItem value={address.id} id={address.id} checked={selectedAddressId === address.id} />
                 </div>
-              </div>
-            ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setUseNewAddress(true)}
-              className="w-full"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Thêm địa chỉ mới
-            </Button>
-          </div>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setUseNewAddress(true)}
+                className="w-full"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Thêm địa chỉ mới
+              </Button>
+            </div>
+          </RadioGroup>
         )}
 
         {useNewAddress && (
           <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="fullName">Họ và tên</Label>
                 <Input
                   id="fullName"
@@ -186,7 +198,7 @@ export function CheckoutForm({
                   required
                 />
               </div>
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="phone">Số điện thoại</Label>
                 <Input
                   id="phone"
@@ -197,7 +209,7 @@ export function CheckoutForm({
                 />
               </div>
             </div>
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -207,39 +219,57 @@ export function CheckoutForm({
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <Label htmlFor="city">Tỉnh/Thành phố</Label>
-                <Input
-                  id="city"
-                  placeholder="Chọn Tỉnh/Thành phố"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="province">
+                  Tỉnh/Thành phố <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={formData.province}
+                  onValueChange={(value) => {
+                    setSelectedProvince(value)
+                    const wards = getWardsByProvinceName(value)
+                    setAvailableWards(wards)
+                    setFormData({ ...formData, province: value, ward: "" })
+                  }}
                   required
-                />
+                >
+                  <SelectTrigger id="province">
+                    <SelectValue placeholder="Chọn tỉnh/thành phố" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {provinces.map((province) => (
+                      <SelectItem key={province.code} value={province.name}>
+                        {province.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <Label htmlFor="district">Quận/Huyện</Label>
-                <Input
-                  id="district"
-                  placeholder="Chọn Quận/Huyện"
-                  value={formData.district}
-                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="ward">Phường/Xã</Label>
-                <Input
-                  id="ward"
-                  placeholder="Chọn Phường/Xã"
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="ward">
+                  Phường/Xã <span className="text-red-500">*</span>
+                </Label>
+                <Select
                   value={formData.ward}
-                  onChange={(e) => setFormData({ ...formData, ward: e.target.value })}
+                  onValueChange={(value) => setFormData({ ...formData, ward: value })}
                   required
-                />
+                  disabled={!selectedProvince || availableWards.length === 0}
+                >
+                  <SelectTrigger id="ward">
+                    <SelectValue placeholder={selectedProvince ? "Chọn phường/xã" : "Chọn tỉnh trước"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableWards.map((ward) => (
+                      <SelectItem key={ward.code} value={ward.name}>
+                        {ward.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="address">Địa chỉ cụ thể</Label>
               <Textarea
                 id="address"
