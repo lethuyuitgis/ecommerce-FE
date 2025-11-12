@@ -332,7 +332,3 @@ export default function SellerCategoriesPage() {
         </div>
     )
 }
-
-
-
-

@@ -20,14 +20,14 @@ Crawl products from a specific category on a given platform.
 
 #### Request Body
 
-```json
+\`\`\`json
 {
   "category": "dien-thoai-phu-kien",
   "platform": "shopee",
   "limit": 50,
   "page": 1
 }
-```
+\`\`\`
 
 #### Parameters
 
@@ -38,7 +38,7 @@ Crawl products from a specific category on a given platform.
 
 #### Response
 
-```json
+\`\`\`json
 {
   "success": true,
   "data": {
@@ -60,7 +60,7 @@ Crawl products from a specific category on a given platform.
     "errors": []
   }
 }
-```
+\`\`\`
 
 ## Supported Categories
 
@@ -87,7 +87,7 @@ Crawl products from a specific category on a given platform.
 
 ### From Frontend
 
-```typescript
+\`\`\`typescript
 import { sellerApi } from '@/lib/api/seller'
 
 const response = await sellerApi.crawlCategory({
@@ -100,11 +100,11 @@ if (response.success) {
   console.log(`Crawled ${response.data.total} products`)
   // Products are automatically exported to Excel
 }
-```
+\`\`\`
 
 ### Direct API Call
 
-```bash
+\`\`\`bash
 curl -X POST http://localhost:3000/api/seller/products/crawl/category \
   -H "Content-Type: application/json" \
   -d '{
@@ -112,7 +112,7 @@ curl -X POST http://localhost:3000/api/seller/products/crawl/category \
     "platform": "shopee",
     "limit": 50
   }'
-```
+\`\`\`
 
 ## Limitations & Considerations
 
@@ -184,8 +184,3 @@ For issues or questions, please check:
 - API documentation
 - Platform-specific API documentation
 - Error messages in the response
-
-
-
-
-

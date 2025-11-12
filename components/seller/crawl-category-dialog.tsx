@@ -526,4 +526,3 @@ export function CrawlCategoryDialog({ open, onOpenChange }: CrawlCategoryDialogP
         </Dialog>
     )
 }
-

@@ -54,10 +54,3 @@ export function useCategory(slug: string) {
 
   return { category, loading, error }
 }
-
-
-
-
-
-
-

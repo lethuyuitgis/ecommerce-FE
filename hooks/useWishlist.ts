@@ -71,10 +71,3 @@ export function useWishlist() {
     refreshWishlist: fetchWishlist,
   }
 }
-
-
-
-
-
-
-

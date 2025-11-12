@@ -143,5 +143,3 @@ export async function apiClientWithFile<T>(
     throw new ApiError('Upload error', 0, error)
   }
 }
-
-

@@ -125,9 +125,3 @@ export function ReviewForm({ productId, onClose, onSuccess }: ReviewFormProps) {
         </div>
     )
 }
-
-
-
-
-
-

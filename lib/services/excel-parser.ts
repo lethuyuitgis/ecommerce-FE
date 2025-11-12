@@ -278,8 +278,3 @@ export function parseExcelBuffer(buffer: Buffer): ParseResult {
     return { products, errors }
   }
 }
-
-
-
-
-
