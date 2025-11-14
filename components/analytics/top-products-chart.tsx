@@ -3,7 +3,12 @@ import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import { TrendingUp, TrendingDown } from "lucide-react"
 
-const topProducts = [
+interface TopProductsChartProps {
+  topProducts?: Array<{ id: string; name: string; image?: string; sold: number; revenue: number; trend: string; trendUp: boolean }>
+  lowStockProducts?: Array<{ name: string; stock: number; status: string }>
+}
+
+const defaultTopProducts = [
   {
     id: "1",
     name: "iPhone 15 Pro Max 256GB",
@@ -33,13 +38,13 @@ const topProducts = [
   },
 ]
 
-const lowStockProducts = [
+const defaultLowStock = [
   { name: "Tai nghe Bluetooth", stock: 5, status: "critical" },
   { name: "Ốp lưng iPhone", stock: 12, status: "warning" },
   { name: "Cáp sạc Type-C", stock: 18, status: "warning" },
 ]
 
-export function TopProductsChart() {
+export function TopProductsChart({ topProducts = defaultTopProducts, lowStockProducts = defaultLowStock }: TopProductsChartProps) {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",

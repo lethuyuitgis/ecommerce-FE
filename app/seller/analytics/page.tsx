@@ -1,17 +1,39 @@
 "use client"
 
 import dynamic from "next/dynamic"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Download, TrendingUp, TrendingDown } from "lucide-react"
+import { Download, TrendingUp, TrendingDown, Loader2 } from "lucide-react"
 import { SellerSidebar } from "@/components/seller/seller-sidebar"
+import { toast } from "sonner"
+import { reportsApi } from "@/lib/api/reports"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { analyticsApi, SellerAnalyticsDashboard } from "@/lib/api/analytics"
 
-const RevenueChart = dynamic(() => import("@/components/analytics/revenue-chart").then(mod => ({ default: mod.RevenueChart })), { ssr: false, loading: () => <ChartFallback /> })
-const CustomerAnalytics = dynamic(() => import("@/components/analytics/customer-analytics").then(mod => ({ default: mod.CustomerAnalytics })), { ssr: false, loading: () => <ChartFallback /> })
-const TrafficAnalytics = dynamic(() => import("@/components/analytics/traffic-analytics").then(mod => ({ default: mod.TrafficAnalytics })), { ssr: false, loading: () => <ChartFallback /> })
-const TopProductsChart = dynamic(() => import("@/components/analytics/top-products-chart").then(mod => ({ default: mod.TopProductsChart })), { loading: () => <div className="py-12 text-center text-muted-foreground">Đang tải dữ liệu...</div> })
+const RevenueChart = dynamic(
+  () => import("@/components/analytics/revenue-chart").then((mod) => mod.RevenueChart),
+  { ssr: false, loading: () => <ChartFallback /> }
+)
+const CustomerAnalytics = dynamic(
+  () => import("@/components/analytics/customer-analytics").then((mod) => mod.CustomerAnalytics),
+  { ssr: false, loading: () => <ChartFallback /> }
+)
+const TrafficAnalytics = dynamic(
+  () => import("@/components/analytics/traffic-analytics").then((mod) => mod.TrafficAnalytics),
+  { ssr: false, loading: () => <ChartFallback /> }
+)
+const TopProductsChart = dynamic(
+  () => import("@/components/analytics/top-products-chart").then((mod) => mod.TopProductsChart),
+  { loading: () => <div className="py-12 text-center text-muted-foreground">Đang tải dữ liệu...</div> }
+)
 
 function ChartFallback() {
   return (
@@ -22,6 +44,91 @@ function ChartFallback() {
 }
 
 export default function AnalyticsPage() {
+  const [period, setPeriod] = useState<'7days' | '30days' | '90days' | 'year'>('30days')
+  const [exporting, setExporting] = useState(false)
+  const [dashboard, setDashboard] = useState<SellerAnalyticsDashboard | null>(null)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+
+  const handleExportReport = async (type: 'EXCEL' | 'PDF') => {
+    try {
+      setExporting(true)
+      toast.info("Đang tạo báo cáo...")
+
+      // Call backend API to export report
+      const blob = await reportsApi.exportReport({
+        type,
+        period,
+        reportType: 'all',
+      })
+
+      // Get filename from Content-Disposition header or generate default
+      const extension = type === 'EXCEL' ? 'xlsx' : 'pdf'
+      const periodLabel = period === '7days' ? '7-ngay' : period === '30days' ? '30-ngay' : period === '90days' ? '90-ngay' : 'nam'
+      const filename = `bao-cao-${periodLabel}-${new Date().toISOString().split('T')[0]}.${extension}`
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      toast.success(`Xuất báo cáo ${type === 'EXCEL' ? 'Excel' : 'PDF'} thành công!`)
+    } catch (error: any) {
+      console.error('Export error:', error)
+      toast.error(error.message || "Xuất báo cáo thất bại. Vui lòng thử lại.")
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoadingAnalytics(true)
+        const response = await analyticsApi.getDashboard(period)
+        if (response.success && response.data) {
+          setDashboard(response.data)
+        }
+      } catch (error) {
+        console.error("Failed to load analytics dashboard", error)
+        toast.error("Không thể tải dữ liệu thống kê")
+      } finally {
+        setLoadingAnalytics(false)
+      }
+    }
+    load()
+  }, [period])
+
+  const overview = dashboard?.overview
+  const cards = useMemo(() => {
+    return [
+      {
+        title: "Doanh thu",
+        value: overview ? formatCurrency(overview.revenue) : "125.5M₫",
+        change: overview?.revenueChange ?? 24.5,
+      },
+      {
+        title: "Đơn hàng",
+        value: overview ? overview.orders.toLocaleString("vi-VN") : "1,234",
+        change: overview?.ordersChange ?? 18.2,
+      },
+      {
+        title: "Giá trị TB/Đơn",
+        value: overview ? formatCurrency(overview.averageOrderValue) : "1.02M₫",
+        change: overview?.averageOrderValueChange ?? -5.3,
+      },
+      {
+        title: "Tỷ lệ chuyển đổi",
+        value: overview ? `${overview.conversionRate.toFixed(2)}%` : "3.24%",
+        change: overview?.conversionRateChange ?? 0.8,
+      },
+    ]
+  }, [overview])
+
   return (
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
@@ -34,7 +141,7 @@ export default function AnalyticsPage() {
               <p className="text-muted-foreground mt-1">Phân tích hiệu suất kinh doanh của bạn</p>
             </div>
             <div className="flex gap-2">
-              <Select defaultValue="30days">
+              <Select value={period} onValueChange={(value: any) => setPeriod(value)}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -45,66 +152,60 @@ export default function AnalyticsPage() {
                   <SelectItem value="year">Năm nay</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline">
-                <Download className="h-4 w-4 mr-2" />
-                Xuất báo cáo
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={exporting}>
+                    {exporting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Đang xuất...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        Xuất báo cáo
+                      </>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleExportReport('EXCEL')}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Xuất Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportReport('PDF')}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Xuất PDF (.pdf)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
           {/* Key Metrics */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Doanh thu</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">125.5M₫</div>
-                <div className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+24.5% so với tháng trước</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Đơn hàng</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">1,234</div>
-                <div className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+18.2% so với tháng trước</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Giá trị TB/Đơn</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">1.02M₫</div>
-                <div className="flex items-center gap-1 text-sm text-red-600 mt-1">
-                  <TrendingDown className="h-4 w-4" />
-                  <span>-5.3% so với tháng trước</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Tỷ lệ chuyển đổi</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">3.24%</div>
-                <div className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                  <TrendingUp className="h-4 w-4" />
-                  <span>+0.8% so với tháng trước</span>
-                </div>
-              </CardContent>
-            </Card>
+            {cards.map((card) => {
+              const change = card.change ?? 0
+              const isPositive = change >= 0
+              const ChangeIcon = isPositive ? TrendingUp : TrendingDown
+              const changeText = `${isPositive ? "+" : ""}${change.toFixed(1)}% so với kỳ trước`
+              return (
+                <Card key={card.title}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">{card.value}</div>
+                    <div
+                      className={`flex items-center gap-1 text-sm mt-1 ${isPositive ? "text-green-600" : "text-red-600"}`}
+                    >
+                      <ChangeIcon className="h-4 w-4" />
+                      <span>{changeText}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
 
           {/* Charts */}
@@ -117,23 +218,46 @@ export default function AnalyticsPage() {
             </TabsList>
 
             <TabsContent value="revenue">
-              <RevenueChart />
+              <RevenueChart
+                revenueData={dashboard?.revenueSeries}
+                categoryData={dashboard?.categorySeries}
+              />
             </TabsContent>
 
             <TabsContent value="products">
-              <TopProductsChart />
+              <TopProductsChart
+                topProducts={dashboard?.topProducts}
+                lowStockProducts={dashboard?.lowStockProducts}
+              />
             </TabsContent>
 
             <TabsContent value="customers">
-              <CustomerAnalytics />
+              <CustomerAnalytics
+                customerTypeData={dashboard?.customerTypes}
+                customerLocationData={dashboard?.customerLocations}
+              />
             </TabsContent>
 
             <TabsContent value="traffic">
-              <TrafficAnalytics />
+              <TrafficAnalytics
+                trafficData={dashboard?.trafficSeries}
+                sourceData={dashboard?.trafficSources}
+              />
             </TabsContent>
           </Tabs>
+          {loadingAnalytics && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Đang cập nhật dữ liệu...</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
   )
+}
+
+function formatCurrency(value?: number) {
+  if (value == null) return "0₫"
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value)
 }

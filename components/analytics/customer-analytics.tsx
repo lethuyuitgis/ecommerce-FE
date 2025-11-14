@@ -15,13 +15,18 @@ import {
   CartesianGrid,
 } from "recharts"
 
-const customerTypeData = [
+interface CustomerAnalyticsProps {
+  customerTypeData?: Array<{ name: string; value: number; color?: string }>
+  customerLocationData?: Array<{ city: string; customers: number }>
+}
+
+const defaultCustomerTypeData = [
   { name: "Khách mới", value: 45, color: "#f59e0b" },
   { name: "Khách quay lại", value: 35, color: "#d97706" },
   { name: "Khách VIP", value: 20, color: "#eab308" },
 ]
 
-const customerLocationData = [
+const defaultCustomerLocationData = [
   { city: "TP.HCM", customers: 456 },
   { city: "Hà Nội", customers: 389 },
   { city: "Đà Nẵng", customers: 234 },
@@ -29,7 +34,10 @@ const customerLocationData = [
   { city: "Khác", customers: 289 },
 ]
 
-export function CustomerAnalytics() {
+export function CustomerAnalytics({
+  customerTypeData = defaultCustomerTypeData,
+  customerLocationData = defaultCustomerLocationData,
+}: CustomerAnalyticsProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>

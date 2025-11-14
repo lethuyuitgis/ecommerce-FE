@@ -20,6 +20,7 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("")
   const [paymentMethod, setPaymentMethod] = useState("cod")
   const [note, setNote] = useState("")
+  const [voucherCode, setVoucherCode] = useState<string | null>(null)
 
   const handleCreateOrder = async () => {
     if (!isAuthenticated) {
@@ -47,6 +48,7 @@ export default function CheckoutPage() {
         })),
         shippingAddressId: selectedAddressId,
         paymentMethod: paymentMethod,
+        voucherCode: voucherCode || undefined,
         notes: note || undefined,
       }
 
@@ -95,7 +97,11 @@ export default function CheckoutPage() {
               />
             </div>
             <div>
-              <CheckoutSummary onSubmit={handleCreateOrder} loading={loading} />
+              <CheckoutSummary
+                onSubmit={handleCreateOrder}
+                loading={loading}
+                onVoucherChange={(code, discount) => setVoucherCode(code)}
+              />
             </div>
           </div>
         </div>

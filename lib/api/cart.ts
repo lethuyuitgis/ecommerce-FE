@@ -11,6 +11,19 @@ export interface CartItem {
   variantPrice?: number
   quantity: number
   availableQuantity: number
+  // Variant options
+  size?: string
+  color?: string
+  [key: string]: any
+}
+
+export interface AddToCartRequest {
+  productId: string
+  variantId?: string | null
+  quantity: number
+  size?: string
+  color?: string
+  [key: string]: any
 }
 
 export const cartApi = {
@@ -18,14 +31,28 @@ export const cartApi = {
     return apiClient<CartItem[]>('/cart')
   },
 
-  addToCart: async (productId: string, variantId: string | null, quantity: number = 1): Promise<ApiResponse<CartItem>> => {
+  addToCart: async (
+    productId: string,
+    variantId: string | null = null,
+    quantity: number = 1,
+    options?: { size?: string; color?: string; [key: string]: any }
+  ): Promise<ApiResponse<CartItem>> => {
+    const payload: AddToCartRequest = {
+      productId,
+      variantId: variantId || undefined,
+      quantity,
+    }
+    
+    if (options?.size) {
+      payload.size = options.size
+    }
+    if (options?.color) {
+      payload.color = options.color
+    }
+    
     return apiClient<CartItem>('/cart/add', {
       method: 'POST',
-      body: JSON.stringify({
-        productId,
-        variantId,
-        quantity,
-      }),
+      body: JSON.stringify(payload),
     })
   },
 
@@ -48,4 +75,9 @@ export const cartApi = {
     })
   },
 }
+
+
+
+
+
 

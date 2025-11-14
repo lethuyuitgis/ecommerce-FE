@@ -5,8 +5,8 @@ import { Footer } from "@/components/common/footer"
 import { ProductDetail } from "@/components/product/product-detail"
 import { ProductReviews } from "@/components/product/product-reviews"
 import { RelatedProducts } from "@/components/product/related-products"
-import { useProduct } from "@/hooks/useProducts"
 import { notFound } from "next/navigation"
+import { useProduct } from "@/hooks/useProducts"
 
 export default function ProductPage({ params }: { params: { id: string } }) {
   const { product, loading, error } = useProduct(params.id)

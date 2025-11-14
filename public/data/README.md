@@ -44,3 +44,9 @@ import products from '@/public/data/products.json'
 - Password đã được hash bằng BCrypt
 - Foreign keys đã được liên kết đúng với các bảng liên quan
 
+
+
+
+
+
+

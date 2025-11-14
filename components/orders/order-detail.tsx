@@ -165,12 +165,12 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
                   {step.status}
                 </p>
                 {step.date && <p className="text-center text-xs text-muted-foreground">{step.date}</p>}
-                {index < order.timeline.length - 1 && (
+                {index < timeline.length - 1 && timeline.length > 1 && (
                   <div
                     className={`absolute top-5 h-0.5 ${step.completed ? "bg-primary" : "bg-muted"}`}
                     style={{
-                      left: `${(index / (order.timeline.length - 1)) * 100}%`,
-                      width: `${100 / (order.timeline.length - 1)}%`,
+                      left: `${(index / (timeline.length - 1)) * 100}%`,
+                      width: `${100 / (timeline.length - 1)}%`,
                     }}
                   />
                 )}

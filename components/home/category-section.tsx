@@ -1,12 +1,17 @@
 'use client'
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { categoriesApi, Category } from "@/lib/api/categories"
 
 export function CategorySection() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(true)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -27,6 +32,41 @@ export function CategorySection() {
     fetchCategories()
   }, [])
 
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const checkScrollability = () => {
+      const { scrollLeft, scrollWidth, clientWidth } = container
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10)
+    }
+
+    checkScrollability()
+    container.addEventListener('scroll', checkScrollability)
+    window.addEventListener('resize', checkScrollability)
+
+    return () => {
+      container.removeEventListener('scroll', checkScrollability)
+      window.removeEventListener('resize', checkScrollability)
+    }
+  }, [categories])
+
+  const scroll = (direction: 'left' | 'right') => {
+    const container = scrollContainerRef.current
+    if (!container) return
+
+    const scrollAmount = 300 // Scroll 300px each time
+    const targetScroll = direction === 'left' 
+      ? container.scrollLeft - scrollAmount
+      : container.scrollLeft + scrollAmount
+
+    container.scrollTo({
+      left: targetScroll,
+      behavior: 'smooth'
+    })
+  }
+
   return (
     <section className="border-b bg-white">
       <div className="container mx-auto px-4 py-6">
@@ -35,7 +75,25 @@ export function CategorySection() {
           <div className="text-center py-4">Đang tải danh mục...</div>
         ) : categories.length > 0 ? (
           <div className="relative">
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            {/* Previous Button */}
+            {canScrollLeft && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute left-0 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white border-gray-200"
+                onClick={() => scroll('left')}
+                aria-label="Previous categories"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            )}
+
+            {/* Categories Slider */}
+            <div
+              ref={scrollContainerRef}
+              className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide scroll-smooth px-2"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               {categories.map((category) => (
                 <Link
                   key={category.id}
@@ -64,6 +122,19 @@ export function CategorySection() {
                 </Link>
               ))}
             </div>
+
+            {/* Next Button */}
+            {canScrollRight && (
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute right-0 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-white/90 backdrop-blur-sm shadow-lg hover:bg-white border-gray-200"
+                onClick={() => scroll('right')}
+                aria-label="Next categories"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            )}
           </div>
         ) : (
           <div className="text-center py-4 text-muted-foreground">Chưa có danh mục nào</div>

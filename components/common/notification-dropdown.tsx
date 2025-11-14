@@ -27,6 +27,7 @@ function buildWebSocketUrl(): string {
   const base = (process.env.NEXT_PUBLIC_API_URL || window.location.origin).replace(/\/$/, "")
   const normalized = base.replace(/\/api$/, "")
   const protocol = normalized.startsWith("https") ? "wss" : "ws"
+  // Spring WebSocket với SockJS thường dùng /ws endpoint
   return normalized.replace(/^https?/, protocol) + "/ws"
 }
 
@@ -42,6 +43,14 @@ export function NotificationDropdown() {
     if (isAuthenticated) {
       fetchNotifications()
       fetchUnreadCount()
+      // Polling fallback nếu WebSocket không hoạt động
+      const pollingInterval = setInterval(() => {
+        fetchUnreadCount()
+      }, 30000) // Poll mỗi 30 giây
+
+      return () => {
+        clearInterval(pollingInterval)
+      }
     } else {
       setNotifications([])
       setUnreadCount(0)
@@ -92,14 +101,32 @@ export function NotificationDropdown() {
 
     client.onStompError = (frame) => {
       console.error("STOMP error", frame)
+      // Không spam console trong production
+      if (process.env.NODE_ENV === "development") {
+        console.warn("WebSocket STOMP error - notifications will use polling fallback")
+      }
     }
 
     client.onWebSocketError = (event) => {
-      console.error("Websocket error", event)
+      // Chỉ log trong development, không spam console
+      if (process.env.NODE_ENV === "development") {
+        console.warn("WebSocket connection failed - notifications will use polling fallback", {
+          url: brokerURL,
+          error: event
+        })
+      }
+      // WebSocket không kết nối được, hệ thống sẽ dùng polling thay thế
     }
 
-    client.activate()
-    clientRef.current = client
+    // Chỉ activate nếu URL hợp lệ
+    try {
+      client.activate()
+      clientRef.current = client
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Failed to activate WebSocket client", error)
+      }
+    }
 
     return () => {
       client.deactivate()
@@ -108,9 +135,10 @@ export function NotificationDropdown() {
   }, [isAuthenticated, user?.userId])
 
   const fetchNotifications = async () => {
+    if (!user?.userId) return
     try {
       setLoading(true)
-      const response = await notificationsApi.getNotifications(0, MAX_NOTIFICATIONS)
+      const response = await notificationsApi.getNotifications(user.userId, 0, MAX_NOTIFICATIONS)
       if (response.success && response.data) {
         setNotifications(response.data.content)
       }
@@ -122,8 +150,9 @@ export function NotificationDropdown() {
   }
 
   const fetchUnreadCount = async () => {
+    if (!user?.userId) return
     try {
-      const response = await notificationsApi.getUnreadCount()
+      const response = await notificationsApi.getUnreadCount(user.userId)
       if (response.success && response.data !== undefined) {
         setUnreadCount(Number(response.data) || 0)
       }
@@ -133,8 +162,9 @@ export function NotificationDropdown() {
   }
 
   const markAsRead = async (id: string) => {
+    if (!user?.userId) return
     try {
-      const response = await notificationsApi.markAsRead(id)
+      const response = await notificationsApi.markAsRead(user.userId, id)
       if (response.success) {
         setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
         setUnreadCount((prev) => Math.max(0, prev - 1))
@@ -145,8 +175,9 @@ export function NotificationDropdown() {
   }
 
   const markAllAsRead = async () => {
+    if (!user?.userId) return
     try {
-      const response = await notificationsApi.markAllAsRead()
+      const response = await notificationsApi.markAllAsRead(user.userId)
       if (response.success) {
         setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })))
         setUnreadCount(0)
@@ -157,8 +188,9 @@ export function NotificationDropdown() {
   }
 
   const deleteNotification = async (id: string) => {
+    if (!user?.userId) return
     try {
-      const response = await notificationsApi.deleteNotification(id)
+      const response = await notificationsApi.deleteNotification(user.userId, id)
       if (response.success) {
         const notification = notifications.find(n => n.id === id)
         if (notification && !notification.isRead) {

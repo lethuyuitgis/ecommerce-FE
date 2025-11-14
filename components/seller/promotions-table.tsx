@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -21,59 +22,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useState } from "react"
-
-const mockPromotions = [
-  {
-    id: "1",
-    name: "Flash Sale Cuối Tuần",
-    type: "percentage",
-    value: 30,
-    startDate: "2024-01-10",
-    endDate: "2024-01-12",
-    products: 25,
-    used: 156,
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Giảm Giá Mùa Hè",
-    type: "fixed",
-    value: 100000,
-    startDate: "2024-01-05",
-    endDate: "2024-01-31",
-    products: 50,
-    used: 89,
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Khuyến Mãi Tết",
-    type: "percentage",
-    value: 20,
-    startDate: "2024-02-01",
-    endDate: "2024-02-15",
-    products: 100,
-    used: 0,
-    status: "scheduled",
-  },
-  {
-    id: "4",
-    name: "Black Friday",
-    type: "percentage",
-    value: 50,
-    startDate: "2023-11-24",
-    endDate: "2023-11-26",
-    products: 80,
-    used: 456,
-    status: "expired",
-  },
-]
+import { promotionsApi, Promotion } from "@/lib/api/promotions"
 
 export function PromotionsTable() {
-  const [deletePromo, setDeletePromo] = useState<any>(null)
+  const [items, setItems] = useState<Promotion[]>([])
+  const [deletePromo, setDeletePromo] = useState<Promotion | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      const res = await promotionsApi.getSellerPromotions(0, 50)
+      if (res.success && res.data) {
+        setItems(res.data.content || [])
+      }
+    }
+    load()
+  }, [])
+
   const formatValue = (type: string, value: number) => {
-    if (type === "percentage") {
+    if ((type || '').toLowerCase().includes("percent")) {
       return `${value}%`
     }
     return new Intl.NumberFormat("vi-VN", {
@@ -83,16 +49,11 @@ export function PromotionsTable() {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge variant="default">Đang chạy</Badge>
-      case "scheduled":
-        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Đã lên lịch</Badge>
-      case "expired":
-        return <Badge variant="secondary">Đã kết thúc</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
+    const s = (status || '').toLowerCase()
+    if (s === "active") return <Badge variant="default">Đang chạy</Badge>
+    if (s === "scheduled") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Đã lên lịch</Badge>
+    if (s === "expired") return <Badge variant="secondary">Đã kết thúc</Badge>
+    return <Badge variant="outline">{status}</Badge>
   }
 
   return (
@@ -105,24 +66,24 @@ export function PromotionsTable() {
               <TableHead>Loại</TableHead>
               <TableHead>Giá trị</TableHead>
               <TableHead>Thời gian</TableHead>
-              <TableHead className="text-right">Sản phẩm</TableHead>
+              <TableHead className="text-right">Giới hạn</TableHead>
               <TableHead className="text-right">Đã dùng</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockPromotions.map((promo) => (
+            {items.map((promo) => (
               <TableRow key={promo.id}>
                 <TableCell className="font-medium">{promo.name}</TableCell>
-                <TableCell>{promo.type === "percentage" ? "Phần trăm" : "Số tiền"}</TableCell>
-                <TableCell className="font-medium">{formatValue(promo.type, promo.value)}</TableCell>
+                <TableCell>{promo.promotionType === "PERCENTAGE" ? "Phần trăm" : "Số tiền"}</TableCell>
+                <TableCell className="font-medium">{formatValue(promo.promotionType, promo.discountValue)}</TableCell>
                 <TableCell className="text-sm">
-                  <div>{promo.startDate}</div>
-                  <div className="text-muted-foreground">đến {promo.endDate}</div>
+                  <div>{new Date(promo.startDate).toLocaleDateString("vi-VN")}</div>
+                  <div className="text-muted-foreground">đến {new Date(promo.endDate).toLocaleDateString("vi-VN")}</div>
                 </TableCell>
-                <TableCell className="text-right">{promo.products}</TableCell>
-                <TableCell className="text-right">{promo.used}</TableCell>
+                <TableCell className="text-right">{promo.quantityLimit ?? '-'}</TableCell>
+                <TableCell className="text-right">{promo.quantityUsed ?? 0}</TableCell>
                 <TableCell>{getStatusBadge(promo.status)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -140,12 +101,12 @@ export function PromotionsTable() {
                         <Copy className="h-4 w-4 mr-2" />
                         Sao chép
                       </DropdownMenuItem>
-                      {promo.status === "active" ? (
+                      {String(promo.status).toLowerCase() === "active" ? (
                         <DropdownMenuItem>
                           <EyeOff className="h-4 w-4 mr-2" />
                           Tạm dừng
                         </DropdownMenuItem>
-                      ) : promo.status === "scheduled" ? (
+                      ) : String(promo.status).toLowerCase() === "scheduled" ? (
                         <DropdownMenuItem>
                           <Eye className="h-4 w-4 mr-2" />
                           Kích hoạt ngay

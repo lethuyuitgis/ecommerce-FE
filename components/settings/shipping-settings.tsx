@@ -20,6 +20,7 @@ export function ShippingSettings() {
 
   useEffect(() => {
     fetchShippingMethods()
+    fetchShippingSettings()
   }, [])
 
   const fetchShippingMethods = async () => {
@@ -30,15 +31,29 @@ export function ShippingSettings() {
         setShippingMethods(response.data)
         const enabled: Record<string, boolean> = {}
         response.data.forEach((method) => {
-          enabled[method.id] = method.isActive
+          enabled[method.id] = method.isActive || false
         })
         setEnabledMethods(enabled)
       }
     } catch (error) {
       console.error('Failed to fetch shipping methods:', error)
+      // Fallback to default methods if API fails
       toast.error("Tải phương thức vận chuyển thất bại")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchShippingSettings = async () => {
+    try {
+      const response = await shippingApi.getShippingSettings()
+      if (response.success && response.data) {
+        setFreeShippingEnabled(response.data.freeShippingEnabled || false)
+        setMinOrderValue(response.data.minOrderValue?.toString() || "")
+      }
+    } catch (error) {
+      console.error('Failed to fetch shipping settings:', error)
+      // Use defaults if API fails
     }
   }
 

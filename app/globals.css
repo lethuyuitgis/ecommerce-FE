@@ -147,14 +147,22 @@
     margin-top: 0;
   }
   
-  /* Ensure DropdownMenu Portal renders correctly - higher than header z-50 */
+  /* Ensure DropdownMenu Portal renders correctly */
   [data-radix-portal] {
-    z-index: 10000 !important;
+    z-index: 9999 !important;
+    
+
   }
   
-  /* Ensure DropdownMenu content is visible and has high z-index */
-  [data-slot="dropdown-menu-content"] {
-    z-index: 10000 !important;
+ [data-slot="dropdown-menu-content"] {
+    position: absolute !important;
+    z-index: 9999 !important;
+  }
+
+  [data-state="open"][data-slot="dropdown-menu-content"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 }
 
@@ -166,4 +174,26 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+  .loading-bar {
+    animation: loading-bar 1s ease-in-out infinite;
+    transform-origin: left;
+  }
 }
+
+header {
+  overflow: visible; /* cho dropdown không bị cắt */
+}
+
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(-20%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+

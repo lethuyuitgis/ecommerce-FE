@@ -37,6 +37,7 @@ export interface CreateMessagePayload {
 }
 
 export const messagesApi = {
+  // Seller endpoints
   getConversations: async (): Promise<ApiResponse<Conversation[]>> => {
     return apiClient<Conversation[]>('/seller/messages/conversations')
   },
@@ -46,9 +47,27 @@ export const messagesApi = {
   },
 
   sendMessage: async (payload: CreateMessagePayload): Promise<ApiResponse<Message>> => {
-    return apiClient<Message>('/seller/messages', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+    // Try customer endpoint first, fallback to seller endpoint
+    try {
+      return await apiClient<Message>('/messages', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+    } catch {
+      // Fallback to seller endpoint
+      return await apiClient<Message>('/seller/messages', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+    }
+  },
+
+  // Customer endpoints
+  getCustomerConversations: async (): Promise<ApiResponse<Conversation[]>> => {
+    return apiClient<Conversation[]>('/messages/conversations')
+  },
+
+  getCustomerConversationMessages: async (conversationId: string, page = 0, size = 50): Promise<ApiResponse<MessagePage>> => {
+    return apiClient<MessagePage>(`/messages/conversations/${conversationId}?page=${page}&size=${size}`)
   },
 }

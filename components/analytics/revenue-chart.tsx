@@ -14,7 +14,12 @@ import {
   Legend,
 } from "recharts"
 
-const revenueData = [
+interface RevenueChartProps {
+  revenueData?: Array<{ date: string; revenue: number; orders?: number; profit?: number }>
+  categoryData?: Array<{ category: string; revenue: number }>
+}
+
+const defaultRevenueData = [
   { date: "01/01", revenue: 4200000, orders: 45, profit: 1260000 },
   { date: "05/01", revenue: 5100000, orders: 52, profit: 1530000 },
   { date: "10/01", revenue: 3800000, orders: 38, profit: 1140000 },
@@ -24,14 +29,14 @@ const revenueData = [
   { date: "30/01", revenue: 6800000, orders: 71, profit: 2040000 },
 ]
 
-const categoryData = [
+const defaultCategoryData = [
   { category: "Điện tử", revenue: 45200000 },
   { category: "Thời trang", revenue: 32100000 },
   { category: "Làm đẹp", revenue: 28500000 },
   { category: "Nhà cửa", revenue: 19700000 },
 ]
 
-export function RevenueChart() {
+export function RevenueChart({ revenueData = defaultRevenueData, categoryData = defaultCategoryData }: RevenueChartProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>

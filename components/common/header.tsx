@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Search, ShoppingCart, User, LogOut } from "lucide-react"
+import { useState, startTransition } from "react"
+import { Search, ShoppingCart, User, LogOut, Truck, ShoppingBag, LayoutDashboard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { NotificationDropdown } from "@/components/common/notification-dropdown"
 import { useAuth } from "@/contexts/AuthContext"
+import { useRouteLoading } from "@/contexts/RouteLoadingContext"
 import { useCart } from "@/hooks/useCart"
 import {
   DropdownMenu,
@@ -22,13 +23,26 @@ export function Header() {
   const { isAuthenticated, user, logout } = useAuth()
   const { totalItems } = useCart()
   const router = useRouter()
+  const { startNavigation } = useRouteLoading()
   const [searchQuery, setSearchQuery] = useState("")
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
+      // Use startTransition for non-blocking navigation
+      const targetPath = `/search?q=${encodeURIComponent(searchQuery)}`
+      startNavigation(targetPath)
+      startTransition(() => {
+        router.push(targetPath)
+      })
     }
+  }
+  
+  const handleNavigation = (path: string) => {
+    startNavigation(path)
+    startTransition(() => {
+      router.push(path)
+    })
   }
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-primary shadow-sm">
@@ -37,10 +51,6 @@ export function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between py-2 text-sm">
             <div className="flex items-center gap-4">
-              <Link href="/seller" className="hover:opacity-80">
-                Kênh Người Bán
-              </Link>
-
               <div className="flex items-center gap-2">
                 <span>Kết nối</span>
                 <div className="flex gap-1">
@@ -68,7 +78,7 @@ export function Header() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/help" className="hover:opacity-80">
+              <Link href="/help" prefetch={false} className="hover:opacity-80">
                 Hỗ Trợ
               </Link>
               {isAuthenticated ? (
@@ -82,16 +92,30 @@ export function Header() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="bg-white text-foreground min-w-48">
-                      <DropdownMenuItem onClick={() => router.push('/profile')}>
+                      <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
                         <User className="mr-2 h-4 w-4" />
                         Tài khoản của tôi
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => router.push('/orders')}>
+                      <DropdownMenuItem onClick={() => handleNavigation('/orders')}>
+                        <ShoppingBag className="mr-2 h-4 w-4" />
                         Đơn hàng của tôi
                       </DropdownMenuItem>
+                      {user?.userType === 'ADMIN' && (
+                        <DropdownMenuItem onClick={() => handleNavigation('/admin')}>
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Bảng điều khiển Admin
+                        </DropdownMenuItem>
+                      )}
                       {user?.userType === 'SELLER' && (
-                        <DropdownMenuItem onClick={() => router.push('/seller')}>
-                          Kênh người bán
+                        <DropdownMenuItem onClick={() => handleNavigation('/seller')}>
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Bảng điều khiển Seller
+                        </DropdownMenuItem>
+                      )}
+                      {user?.userType === 'SHIPPER' && (
+                        <DropdownMenuItem onClick={() => handleNavigation('/ship')}>
+                          <Truck className="mr-2 h-4 w-4" />
+                          Bảng điều khiển Shipper
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
@@ -104,10 +128,10 @@ export function Header() {
                 </>
               ) : (
                 <>
-                  <Link href="/register" className="hover:opacity-80">
+                  <Link href="/register" prefetch={false} className="hover:opacity-80">
                     Đăng Ký
                   </Link>
-                  <Link href="/login" className="hover:opacity-80">
+                  <Link href="/login" prefetch={false} className="hover:opacity-80">
                     Đăng Nhập
                   </Link>
                 </>
@@ -122,7 +146,7 @@ export function Header() {
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-8 py-4">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" prefetch={false} className="flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white">
                 <ShoppingCart className="h-6 w-6 text-primary" />
               </div>
@@ -148,23 +172,23 @@ export function Header() {
                 </Button>
               </form>
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                <Link href="/search?q=áo thun" className="hover:opacity-80">
+                <Link href="/search?q=áo thun" prefetch={false} className="hover:opacity-80">
                   Áo Thun
                 </Link>
-                <Link href="/search?q=giày thể thao" className="hover:opacity-80">
+                <Link href="/search?q=giày thể thao" prefetch={false} className="hover:opacity-80">
                   Giày Thể Thao
                 </Link>
-                <Link href="/search?q=túi xách" className="hover:opacity-80">
+                <Link href="/search?q=túi xách" prefetch={false} className="hover:opacity-80">
                   Túi Xách
                 </Link>
-                <Link href="/search?q=điện thoại" className="hover:opacity-80">
+                <Link href="/search?q=điện thoại" prefetch={false} className="hover:opacity-80">
                   Điện Thoại
                 </Link>
               </div>
             </div>
 
             {/* Cart */}
-            <Link href="/cart">
+            <Link href="/cart" prefetch={false}>
               <Button
                 variant="ghost"
                 size="icon"

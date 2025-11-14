@@ -13,6 +13,7 @@ import {
   ListTree,
   ChevronLeft,
   ChevronRight,
+  Home,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -40,7 +41,7 @@ export function SellerSidebar() {
     >
       {/* Logo */}
       <div className="p-6 border-b">
-        <Link href="/seller" className="flex items-center gap-2">
+        <Link href="/seller" prefetch={false} className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">S</div>
           {!collapsed && <span className="font-bold text-lg">Seller Center</span>}
         </Link>
@@ -64,8 +65,14 @@ export function SellerSidebar() {
         })}
       </nav>
 
-      {/* Collapse Button */}
-      <div className="p-4 border-t">
+      {/* Footer Actions */}
+      <div className="p-4 border-t space-y-2">
+        <Button variant="outline" asChild className="w-full justify-start gap-3">
+          <Link href="/" prefetch={false}>
+            <Home className="w-5 h-5 shrink-0" />
+            {!collapsed && <span>Về trang chủ</span>}
+          </Link>
+        </Button>
         <Button variant="ghost" onClick={() => setCollapsed(!collapsed)} className="w-full justify-center">
           {collapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
         </Button>

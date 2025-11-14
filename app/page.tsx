@@ -1,13 +1,16 @@
 'use client'
 
+import { lazy, Suspense } from "react"
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { ProductCard } from "@/components/product/product-card"
-import { CategorySection } from "@/components/home/category-section"
-import { FlashSaleSection } from "@/components/home/flash-sale-section"
-import { BannerCarousel } from "@/components/home/banner-carousel"
 import { useFeaturedProducts } from "@/hooks/useProducts"
 import { Product } from "@/lib/api/products"
+
+// Lazy load heavy components
+const CategorySection = lazy(() => import("@/components/home/category-section").then(m => ({ default: m.CategorySection })))
+const FlashSaleSection = lazy(() => import("@/components/home/flash-sale-section").then(m => ({ default: m.FlashSaleSection })))
+const BannerCarousel = lazy(() => import("@/components/home/banner-carousel").then(m => ({ default: m.BannerCarousel })))
 
 export default function HomePage() {
   const { products, loading } = useFeaturedProducts(0, 24)
@@ -30,13 +33,19 @@ export default function HomePage() {
       <Header />
       <main>
         {/* Banner Carousel */}
-        <BannerCarousel />
+        <Suspense fallback={<div className="h-64 bg-muted animate-pulse" />}>
+          <BannerCarousel />
+        </Suspense>
 
         {/* Categories */}
-        <CategorySection />
+        <Suspense fallback={<div className="h-32 bg-muted animate-pulse" />}>
+          <CategorySection />
+        </Suspense>
 
         {/* Flash Sale */}
-        <FlashSaleSection />
+        <Suspense fallback={<div className="h-64 bg-muted animate-pulse" />}>
+          <FlashSaleSection />
+        </Suspense>
 
         {/* Featured Products */}
         <section className="container mx-auto px-4 py-8">

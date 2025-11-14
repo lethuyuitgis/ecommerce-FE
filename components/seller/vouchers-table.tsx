@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -21,105 +22,63 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { useState } from "react"
+import { adminApi, AdminVoucher } from "@/lib/api/admin"
+import { toast } from "sonner"
 
-const mockVouchers = [
-  {
-    id: "1",
-    code: "WELCOME2024",
-    type: "percentage",
-    value: 15,
-    minOrder: 200000,
-    maxDiscount: 50000,
-    quantity: 1000,
-    used: 234,
-    startDate: "2024-01-01",
-    endDate: "2024-12-31",
-    status: "active",
-  },
-  {
-    id: "2",
-    code: "FREESHIP50K",
-    type: "shipping",
-    value: 50000,
-    minOrder: 0,
-    maxDiscount: 50000,
-    quantity: 500,
-    used: 456,
-    startDate: "2024-01-01",
-    endDate: "2024-01-31",
-    status: "active",
-  },
-  {
-    id: "3",
-    code: "NEWYEAR100K",
-    type: "fixed",
-    value: 100000,
-    minOrder: 500000,
-    maxDiscount: 100000,
-    quantity: 200,
-    used: 89,
-    startDate: "2024-01-01",
-    endDate: "2024-01-15",
-    status: "active",
-  },
-  {
-    id: "4",
-    code: "SUMMER2023",
-    type: "percentage",
-    value: 25,
-    minOrder: 300000,
-    maxDiscount: 100000,
-    quantity: 500,
-    used: 500,
-    startDate: "2023-06-01",
-    endDate: "2023-08-31",
-    status: "expired",
-  },
-]
+const formatCurrency = (value?: number | null) => {
+  if (!value) return "0₫"
+  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value)
+}
+
+const formatValue = (type?: string, value?: number | null) => {
+  if (!type || value == null) return "-"
+  if (type.toUpperCase() === "PERCENTAGE") {
+    return `${value}%`
+  }
+  return formatCurrency(value)
+}
+
+const formatDate = (iso?: string | null) => {
+  if (!iso) return "-"
+  try {
+    return new Date(iso).toLocaleDateString("vi-VN")
+  } catch {
+    return iso
+  }
+}
+
+const statusBadge = (status?: string, used?: number | null, limit?: number | null) => {
+  if (used != null && limit != null && used >= limit) {
+    return <Badge variant="secondary">Đã hết</Badge>
+  }
+  switch ((status || "").toUpperCase()) {
+    case "ACTIVE":
+      return <Badge variant="default">Đang chạy</Badge>
+    case "INACTIVE":
+      return <Badge variant="secondary">Tạm dừng</Badge>
+    case "SCHEDULED":
+      return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Đã lên lịch</Badge>
+    case "EXPIRED":
+      return <Badge variant="secondary">Đã kết thúc</Badge>
+    default:
+      return <Badge variant="outline">{status || "UNKNOWN"}</Badge>
+  }
+}
 
 export function VouchersTable() {
-  const [deleteVoucher, setDeleteVoucher] = useState<any>(null)
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price)
-  }
+  const [items, setItems] = useState<AdminVoucher[]>([])
+  const [deleteVoucher, setDeleteVoucher] = useState<AdminVoucher | null>(null)
 
-  const formatValue = (type: string, value: number) => {
-    if (type === "percentage") {
-      return `${value}%`
-    }
-    return formatPrice(value)
-  }
-
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case "percentage":
-        return <Badge variant="outline">Phần trăm</Badge>
-      case "fixed":
-        return <Badge variant="outline">Số tiền</Badge>
-      case "shipping":
-        return <Badge variant="outline">Miễn ship</Badge>
-      default:
-        return <Badge variant="outline">{type}</Badge>
+  const load = async () => {
+    const res = await adminApi.listVouchers()
+    if (res.success && res.data) {
+      setItems(res.data)
     }
   }
 
-  const getStatusBadge = (status: string, used: number, quantity: number) => {
-    if (used >= quantity) {
-      return <Badge variant="secondary">Đã hết</Badge>
-    }
-    switch (status) {
-      case "active":
-        return <Badge variant="default">Đang chạy</Badge>
-      case "expired":
-        return <Badge variant="secondary">Đã kết thúc</Badge>
-      default:
-        return <Badge variant="outline">{status}</Badge>
-    }
-  }
+  useEffect(() => {
+    load()
+  }, [])
 
   return (
     <>
@@ -133,29 +92,30 @@ export function VouchersTable() {
               <TableHead>Đơn tối thiểu</TableHead>
               <TableHead className="text-right">Số lượng</TableHead>
               <TableHead className="text-right">Đã dùng</TableHead>
+              <TableHead>Thời gian</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead className="w-12"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockVouchers.map((voucher) => (
+            {items.map((voucher) => (
               <TableRow key={voucher.id}>
                 <TableCell>
                   <div className="font-mono font-bold text-primary">{voucher.code}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {voucher.startDate} - {voucher.endDate}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline">{voucher.type}</Badge>
+                </TableCell>
+                <TableCell className="font-medium">{formatValue(voucher.type, voucher.value)}</TableCell>
+                <TableCell>{voucher.minOrderValue ? formatCurrency(voucher.minOrderValue) : "Không"}</TableCell>
+                <TableCell className="text-right">{voucher.usageLimit ?? "-"}</TableCell>
+                <TableCell className="text-right">{voucher.usedCount ?? 0}</TableCell>
+                <TableCell>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDate(voucher.startDate)} - {formatDate(voucher.endDate)}
                   </div>
                 </TableCell>
-                <TableCell>{getTypeBadge(voucher.type)}</TableCell>
-                <TableCell className="font-medium">{formatValue(voucher.type, voucher.value)}</TableCell>
-                <TableCell>{voucher.minOrder > 0 ? formatPrice(voucher.minOrder) : "Không"}</TableCell>
-                <TableCell className="text-right">{voucher.quantity}</TableCell>
-                <TableCell className="text-right">
-                  <span className={voucher.used >= voucher.quantity ? "text-destructive font-medium" : ""}>
-                    {voucher.used}
-                  </span>
-                </TableCell>
-                <TableCell>{getStatusBadge(voucher.status, voucher.used, voucher.quantity)}</TableCell>
+                <TableCell>{statusBadge(voucher.status, voucher.usedCount, voucher.usageLimit)}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -168,7 +128,9 @@ export function VouchersTable() {
                         <Edit className="h-4 w-4 mr-2" />
                         Chỉnh sửa
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => navigator.clipboard.writeText(voucher.code)}
+                      >
                         <Copy className="h-4 w-4 mr-2" />
                         Sao chép mã
                       </DropdownMenuItem>
@@ -198,7 +160,20 @@ export function VouchersTable() {
               <Button variant="outline">Hủy</Button>
             </AlertDialogCancel>
             <AlertDialogAction asChild>
-              <Button className="text-destructive" onClick={() => setDeleteVoucher(null)}>
+              <Button
+                className="text-destructive"
+                onClick={async () => {
+                  if (!deleteVoucher) return
+                  const res = await adminApi.deleteVoucher(deleteVoucher.id)
+                  if (res.success) {
+                    toast.success("Đã xóa voucher")
+                    setItems((prev) => prev.filter((v) => v.id !== deleteVoucher.id))
+                  } else {
+                    toast.error(res.message || "Xóa thất bại")
+                  }
+                  setDeleteVoucher(null)
+                }}
+              >
                 Xóa
               </Button>
             </AlertDialogAction>

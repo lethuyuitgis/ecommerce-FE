@@ -11,6 +11,7 @@ import Image from "next/image"
 import { sellerApi, Seller } from "@/lib/api/seller"
 import { apiClientWithFile } from "@/lib/api/client"
 import { toast } from "sonner"
+import { BusinessHoursForm } from "./business-hours-form"
 
 export function ShopSettings() {
   const [seller, setSeller] = useState<Seller | null>(null)
@@ -261,17 +262,7 @@ export function ShopSettings() {
           <CardDescription>Thiết lập thời gian hoạt động của cửa hàng</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"].map((day) => (
-            <div key={day} className="flex items-center gap-4">
-              <div className="w-24 font-medium">{day}</div>
-              <Input type="time" defaultValue="08:00" className="w-32" />
-              <span className="text-muted-foreground">-</span>
-              <Input type="time" defaultValue="22:00" className="w-32" />
-            </div>
-          ))}
-          <div className="flex justify-end">
-            <Button>Lưu thay đổi</Button>
-          </div>
+          <BusinessHoursForm />
         </CardContent>
       </Card>
     </div>

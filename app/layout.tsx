@@ -6,6 +6,8 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { Toaster } from "sonner"
 import { AuthProvider } from "@/contexts/AuthContext"
+import { RouteLoadingProvider } from "@/contexts/RouteLoadingContext"
+import { RouteLoadingIndicator } from "@/components/common/route-loading-indicator"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -23,11 +25,14 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <AuthProvider>
-          <Suspense fallback={null}>{children}</Suspense>
-          <Analytics />
-          <Toaster position="top-right" richColors />
-        </AuthProvider>
+        <RouteLoadingProvider>
+          <AuthProvider>
+            <Suspense fallback={null}>{children}</Suspense>
+            <Analytics />
+            <Toaster position="top-right" richColors />
+          </AuthProvider>
+          <RouteLoadingIndicator />
+        </RouteLoadingProvider>
       </body>
     </html>
   )

@@ -212,4 +212,15 @@ export const sellerApi = {
 
     return data
   },
+
+  getBusinessHours: async (): Promise<ApiResponse<Record<string, { open: string; close: string }>>> => {
+    return apiClient<Record<string, { open: string; close: string }>>('/seller/business-hours')
+  },
+
+  updateBusinessHours: async (hours: Record<string, { open: string; close: string }>): Promise<ApiResponse<Record<string, { open: string; close: string }>>> => {
+    return apiClient<Record<string, { open: string; close: string }>>('/seller/business-hours', {
+      method: 'PUT',
+      body: JSON.stringify(hours),
+    })
+  },
 }

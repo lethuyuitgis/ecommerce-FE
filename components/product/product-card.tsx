@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, startTransition } from "react"
 import { Star, MapPin, ShoppingCart, Loader2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,7 @@ import { useCart } from "@/hooks/useCart"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { useRouteLoading } from "@/contexts/RouteLoadingContext"
 
 interface ProductCardProps {
   product: Product
@@ -20,6 +21,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const { addToCart } = useCart()
   const { isAuthenticated } = useAuth()
   const router = useRouter()
+  const { startNavigation } = useRouteLoading()
   const [adding, setAdding] = useState(false)
   const [showAddButton, setShowAddButton] = useState(false)
 
@@ -28,7 +30,10 @@ export function ProductCard({ product }: ProductCardProps) {
     e.stopPropagation()
 
     if (!isAuthenticated) {
-      router.push('/login')
+      startNavigation("/login")
+      startTransition(() => {
+        router.push('/login')
+      })
       return
     }
 
@@ -44,7 +49,7 @@ export function ProductCard({ product }: ProductCardProps) {
   }
 
   return (
-    <Link href={`/product/${product.id}`}>
+    <Link href={`/product/${product.id}`} prefetch={false}>
       <Card
         className="group relative overflow-hidden transition-shadow hover:shadow-lg !py-0"
         onMouseEnter={() => setShowAddButton(true)}

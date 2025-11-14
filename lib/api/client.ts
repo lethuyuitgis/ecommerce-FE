@@ -46,7 +46,54 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   return headers
 }
 
+// Request deduplication map
+const pendingRequests = new Map<string, Promise<ApiResponse<any>>>()
+
 export async function apiClient<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  useCache: boolean = false
+): Promise<ApiResponse<T>> {
+  const requestStartedAt = performance.now?.() ?? Date.now()
+  const method = options.method || 'GET'
+  const isReadRequest = method === 'GET' || method === 'HEAD'
+  
+  // Create cache key
+  const cacheKey = `${method}:${endpoint}:${JSON.stringify(options.body || {})}`
+  
+  // Use cache for GET requests if enabled
+  if (useCache && isReadRequest) {
+    const { apiCache } = await import('./cache')
+    return apiCache.get(cacheKey, () => fetchApi<T>(endpoint, options))
+  }
+
+  // Request deduplication for GET requests
+  if (isReadRequest && pendingRequests.has(cacheKey)) {
+    return pendingRequests.get(cacheKey)!
+  }
+
+  const requestPromise = fetchApi<T>(endpoint, options).then((response) => {
+    const duration = (performance.now?.() ?? Date.now()) - requestStartedAt
+    if (duration > 1000) {
+      const seconds = (duration / 1000).toFixed(2)
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`[apiClient] Slow response (${seconds}s): ${method} ${endpoint}`)
+      }
+    }
+    return response
+  })
+  
+  if (isReadRequest) {
+    pendingRequests.set(cacheKey, requestPromise)
+    requestPromise.finally(() => {
+      pendingRequests.delete(cacheKey)
+    })
+  }
+
+  return requestPromise
+}
+
+async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, startTransition } from "react"
 import { Star, Plus, Minus, ShoppingCart, Heart, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,20 +10,30 @@ import { useWishlist } from "@/hooks/useWishlist"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import type { Product } from "@/lib/products"
+import { ChatWithShopButton } from "./chat-with-shop-button"
+import { useRouteLoading } from "@/contexts/RouteLoadingContext"
 
 interface ProductDetailProps {
   product: Product
+  sellerId?: string
+  sellerName?: string
+  variants?: {
+    sizes?: string[]
+    colors?: string[]
+  }
+  onProductUpdate?: () => void
 }
 
-export function ProductDetail({ product }: ProductDetailProps) {
+export function ProductDetail({ product, sellerId, sellerName, variants, onProductUpdate }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
-  const [selectedSize, setSelectedSize] = useState("M")
-  const [selectedColor, setSelectedColor] = useState("Trắng")
+  const [selectedSize, setSelectedSize] = useState<string>("")
+  const [selectedColor, setSelectedColor] = useState<string>("")
   const { addToCart } = useCart()
   const { isAuthenticated } = useAuth()
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist()
   const router = useRouter()
+  const { startNavigation } = useRouteLoading()
   const [inWishlist, setInWishlist] = useState(false)
 
   useEffect(() => {
@@ -36,19 +46,50 @@ export function ProductDetail({ product }: ProductDetailProps) {
     checkWishlist()
   }, [product.id, isAuthenticated, isInWishlist])
 
-  const images = [product.image, product.image, product.image, product.image]
-  const sizes = ["S", "M", "L", "XL", "XXL"]
-  const colors = ["Trắng", "Đen", "Xám", "Xanh"]
+  // Initialize selected size and color from variants
+  useEffect(() => {
+    if (variants?.sizes && variants.sizes.length > 0 && !selectedSize) {
+      setSelectedSize(variants.sizes[0])
+    }
+    if (variants?.colors && variants.colors.length > 0 && !selectedColor) {
+      setSelectedColor(variants.colors[0])
+    }
+  }, [variants, selectedSize, selectedColor])
+
+  const images = product.images && product.images.length > 0 
+    ? product.images 
+    : [product.image].filter(Boolean)
+  
+  const sizes = variants?.sizes || []
+  const colors = variants?.colors || []
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
-      router.push('/login')
+      startNavigation("/login")
+      startTransition(() => {
+        router.push('/login')
+      })
+      return
+    }
+
+    // Validate variants if required
+    if (sizes.length > 0 && !selectedSize) {
+      toast.error("Vui lòng chọn kích thước")
+      return
+    }
+    if (colors.length > 0 && !selectedColor) {
+      toast.error("Vui lòng chọn màu sắc")
       return
     }
 
     try {
-      await addToCart(product.id, null, quantity)
+      await addToCart(product.id, null, quantity, {
+        size: selectedSize || undefined,
+        color: selectedColor || undefined,
+      })
       toast.success("Đã thêm vào giỏ hàng!")
+      // Refresh product to update quantity
+      onProductUpdate?.()
     } catch (error: any) {
       toast.error(error.message || "Thêm vào giỏ hàng thất bại")
     }
@@ -56,13 +97,34 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
   const handleBuyNow = async () => {
     if (!isAuthenticated) {
-      router.push('/login')
+      startNavigation("/login")
+      startTransition(() => {
+        router.push('/login')
+      })
+      return
+    }
+
+    // Validate variants if required
+    if (sizes.length > 0 && !selectedSize) {
+      toast.error("Vui lòng chọn kích thước")
+      return
+    }
+    if (colors.length > 0 && !selectedColor) {
+      toast.error("Vui lòng chọn màu sắc")
       return
     }
 
     try {
-      await addToCart(product.id, null, quantity)
-      router.push('/checkout')
+      await addToCart(product.id, null, quantity, {
+        size: selectedSize || undefined,
+        color: selectedColor || undefined,
+      })
+      // Refresh product to update quantity before navigating
+      onProductUpdate?.()
+      startNavigation("/checkout")
+      startTransition(() => {
+        router.push('/checkout')
+      })
     } catch (error: any) {
       toast.error(error.message || "Thêm vào giỏ hàng thất bại")
     }
@@ -155,42 +217,46 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </div>
 
           {/* Size Selection */}
-          <div className="mb-4">
-            <label className="mb-2 block text-sm font-medium text-muted-foreground">Kích Thước</label>
-            <div className="flex flex-wrap gap-2">
-              {sizes.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setSelectedSize(size)}
-                  className={`h-10 min-w-16 rounded-sm border px-4 text-sm font-medium transition-colors ${selectedSize === size
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-foreground hover:border-primary"
-                    }`}
-                >
-                  {size}
-                </button>
-              ))}
+          {sizes.length > 0 && (
+            <div className="mb-4">
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">Kích Thước</label>
+              <div className="flex flex-wrap gap-2">
+                {sizes.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    className={`h-10 min-w-16 rounded-sm border px-4 text-sm font-medium transition-colors ${selectedSize === size
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-foreground hover:border-primary"
+                      }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Color Selection */}
-          <div className="mb-6">
-            <label className="mb-2 block text-sm font-medium text-muted-foreground">Màu Sắc</label>
-            <div className="flex flex-wrap gap-2">
-              {colors.map((color) => (
-                <button
-                  key={color}
-                  onClick={() => setSelectedColor(color)}
-                  className={`h-10 min-w-20 rounded-sm border px-4 text-sm font-medium transition-colors ${selectedColor === color
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-border text-foreground hover:border-primary"
-                    }`}
-                >
-                  {color}
-                </button>
-              ))}
+          {colors.length > 0 && (
+            <div className="mb-6">
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">Màu Sắc</label>
+              <div className="flex flex-wrap gap-2">
+                {colors.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setSelectedColor(color)}
+                    className={`h-10 min-w-20 rounded-sm border px-4 text-sm font-medium transition-colors ${selectedColor === color
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-foreground hover:border-primary"
+                      }`}
+                  >
+                    {color}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Quantity */}
           <div className="mb-6">
@@ -241,6 +307,18 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </Button>
           </div>
 
+          {/* Chat with Shop */}
+          {sellerId && (
+            <div className="mt-4">
+              <ChatWithShopButton
+                sellerId={sellerId}
+                sellerName={sellerName}
+                productId={product.id}
+                productName={product.name}
+              />
+            </div>
+          )}
+
           {/* Additional Actions */}
           <div className="mt-4 flex gap-3">
             <Button
@@ -249,7 +327,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
               className={`flex-1 ${inWishlist ? "text-primary" : ""}`}
               onClick={async () => {
                 if (!isAuthenticated) {
-                  router.push('/login')
+                  startNavigation("/login")
+                  startTransition(() => {
+                    router.push('/login')
+                  })
                   return
                 }
                 try {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import FormData from 'form-data'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
 
@@ -49,7 +50,7 @@ export async function PATCH(
   return handleRequest(request, params, 'PATCH')
 }
 
-async function handleRequest(
+export async function handleRequest(
   request: NextRequest,
   params: { slug: string[] },
   method: string
@@ -69,8 +70,54 @@ async function handleRequest(
     const headers: HeadersInit = {}
     
     if (isFormData) {
-      // For file uploads, get FormData
-      body = await request.formData()
+      // For file uploads, parse FormData and recreate using form-data package
+      // This ensures proper multipart/form-data encoding for Node.js
+      try {
+        const formData = await request.formData()
+        const nodeFormData = new FormData()
+        
+        // Copy all fields from original FormData
+        for (const [key, value] of formData.entries()) {
+          if (value instanceof File) {
+            // Convert File to Buffer for form-data package
+            const arrayBuffer = await value.arrayBuffer()
+            const buffer = Buffer.from(arrayBuffer)
+            nodeFormData.append(key, buffer, {
+              filename: value.name,
+              contentType: value.type || 'application/octet-stream',
+            })
+          } else {
+            nodeFormData.append(key, value as string)
+          }
+        }
+        
+        // form-data package returns a stream, forward it directly
+        body = nodeFormData as any
+        // Get the Content-Type from form-data (includes boundary)
+        // Remove charset=UTF-8 as Spring Boot doesn't accept it for multipart
+        const formDataHeaders = nodeFormData.getHeaders()
+        if (formDataHeaders['content-type']) {
+          let contentType = formDataHeaders['content-type'] as string
+          // Remove charset parameter from Content-Type for multipart
+          contentType = contentType.replace(/;?\s*charset=[^;]+/gi, '')
+          headers['Content-Type'] = contentType
+        }
+      } catch (error) {
+        console.error('Error processing FormData:', error)
+        // Fallback: try to forward raw body
+        try {
+          const arrayBuffer = await request.arrayBuffer()
+          body = arrayBuffer
+          if (contentType) {
+            // Remove charset parameter from Content-Type for multipart
+            let fixedContentType = contentType.replace(/;?\s*charset=[^;]+/gi, '')
+            headers['Content-Type'] = fixedContentType
+          }
+        } catch (e) {
+          console.error('Error forwarding FormData:', e)
+          throw new Error('Failed to process FormData')
+        }
+      }
     } else {
       // For JSON requests
       try {

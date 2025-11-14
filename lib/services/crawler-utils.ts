@@ -187,3 +187,9 @@ export function getAvailableCategorySlugs(platform: 'shopee' | 'lazada' | 'tiki'
   return Object.keys(mappings[platform] || {})
 }
 
+
+
+
+
+
+

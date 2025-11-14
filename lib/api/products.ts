@@ -34,6 +34,12 @@ export interface Product {
     is_primary?: boolean
     displayOrder?: number
   }>
+  // Product variants
+  variants?: {
+    sizes?: string[]
+    colors?: string[]
+    [key: string]: any
+  }
 }
 
 export interface ProductPage {

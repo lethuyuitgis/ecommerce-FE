@@ -79,32 +79,32 @@ export function Footer() {
             <h3 className="mb-4 font-semibold text-sm">CHĂM SÓC KHÁCH HÀNG</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/help-center" className="hover:text-primary transition">
+                <Link href="/help-center" prefetch={false} className="hover:text-primary transition">
                   Trung Tâm Trợ Giúp
                 </Link>
               </li>
               <li>
-                <Link href="/blog" className="hover:text-primary transition">
+                <Link href="/blog" prefetch={false} className="hover:text-primary transition">
                   Blog
                 </Link>
               </li>
               <li>
-                <Link href="/payment" className="hover:text-primary transition">
+                <Link href="/payment" prefetch={false} className="hover:text-primary transition">
                   Hướng Dẫn Mua Hàng
                 </Link>
               </li>
               <li>
-                <Link href="/shipping" className="hover:text-primary transition">
+                <Link href="/shipping" prefetch={false} className="hover:text-primary transition">
                   Hướng Dẫn Bán Hàng
                 </Link>
               </li>
               <li>
-                <Link href="/shipping-info" className="hover:text-primary transition">
+                <Link href="/shipping-info" prefetch={false} className="hover:text-primary transition">
                   Vận Chuyển
                 </Link>
               </li>
               <li>
-                <Link href="/returns" className="hover:text-primary transition">
+                <Link href="/returns" prefetch={false} className="hover:text-primary transition">
                   Trả Hàng & Hoàn Tiền
                 </Link>
               </li>
@@ -116,37 +116,37 @@ export function Footer() {
             <h3 className="mb-4 font-semibold text-sm">VỀ SHOPCUATHUY</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/about" className="hover:text-primary transition">
+                <Link href="/about" prefetch={false} className="hover:text-primary transition">
                   Giới Thiệu
                 </Link>
               </li>
               <li>
-                <Link href="/careers" className="hover:text-primary transition">
+                <Link href="/careers" prefetch={false} className="hover:text-primary transition">
                   Tuyển Dụng
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-primary transition">
+                <Link href="/terms" prefetch={false} className="hover:text-primary transition">
                   Điều Khoản
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="hover:text-primary transition">
+                <Link href="/privacy" prefetch={false} className="hover:text-primary transition">
                   Chính Sách Bảo Mật
                 </Link>
               </li>
               <li>
-                <Link href="/authentic" className="hover:text-primary transition">
+                <Link href="/authentic" prefetch={false} className="hover:text-primary transition">
                   Chính Hãng
                 </Link>
               </li>
               <li>
-                <Link href="/flash-sales" className="hover:text-primary transition">
+                <Link href="/flash-sales" prefetch={false} className="hover:text-primary transition">
                   Flash Sales
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="hover:text-primary transition">
+                <Link href="/contact" prefetch={false} className="hover:text-primary transition">
                   Liên Hệ
                 </Link>
               </li>

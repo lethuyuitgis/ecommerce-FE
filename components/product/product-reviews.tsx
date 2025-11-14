@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Star, ThumbsUp, Camera } from "lucide-react"
+import { Star, ThumbsUp, Camera, Play } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { ReviewForm } from "@/components/review-form"
@@ -183,7 +184,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
             <div key={review.id} className="border-b pb-6 last:border-0">
               <div className="mb-3 flex items-start gap-3">
                 <Avatar>
-                  <AvatarImage src="/placeholder.svg" />
+                  <AvatarImage src={review.userAvatar || "/placeholder.svg"} />
                   <AvatarFallback>{review.userName?.[0] || 'U'}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
@@ -208,6 +209,39 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                   {review.comment && (
                     <p className="mb-3 text-sm text-foreground">{review.comment}</p>
                   )}
+
+                  {/* Review Images */}
+                  {review.images && review.images.length > 0 && (
+                    <div className="mb-3 grid grid-cols-4 gap-2">
+                      {review.images.map((imageUrl, index) => (
+                        <div key={index} className="relative aspect-square overflow-hidden rounded-lg border">
+                          <Image
+                            src={imageUrl}
+                            alt={`Review image ${index + 1}`}
+                            fill
+                            className="object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(imageUrl, '_blank')}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Review Videos */}
+                  {review.videos && review.videos.length > 0 && (
+                    <div className="mb-3 grid grid-cols-2 gap-2">
+                      {review.videos.map((videoUrl, index) => (
+                        <div key={index} className="relative aspect-video overflow-hidden rounded-lg border">
+                          <video
+                            src={videoUrl}
+                            controls
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <Button variant="ghost" size="sm" className="h-auto p-0 text-muted-foreground hover:text-primary">
                     <ThumbsUp className="mr-1 h-4 w-4" />
                     Hữu ích ({review.helpfulCount || 0})

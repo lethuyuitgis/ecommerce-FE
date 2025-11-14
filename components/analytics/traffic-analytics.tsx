@@ -14,7 +14,12 @@ import {
   Bar,
 } from "recharts"
 
-const trafficData = [
+interface TrafficAnalyticsProps {
+  trafficData?: Array<{ date: string; views: number; visitors: number; bounceRate?: number }>
+  sourceData?: Array<{ source: string; visitors: number }>
+}
+
+const defaultTrafficData = [
   { date: "01/01", views: 1245, visitors: 856, bounceRate: 42 },
   { date: "05/01", views: 1589, visitors: 1023, bounceRate: 38 },
   { date: "10/01", views: 1342, visitors: 912, bounceRate: 45 },
@@ -24,7 +29,7 @@ const trafficData = [
   { date: "30/01", views: 1987, visitors: 1345, bounceRate: 36 },
 ]
 
-const sourceData = [
+const defaultSourceData = [
   { source: "Tìm kiếm", visitors: 3456 },
   { source: "Mạng xã hội", visitors: 2345 },
   { source: "Trực tiếp", visitors: 1876 },
@@ -32,7 +37,7 @@ const sourceData = [
   { source: "Khác", visitors: 567 },
 ]
 
-export function TrafficAnalytics() {
+export function TrafficAnalytics({ trafficData = defaultTrafficData, sourceData = defaultSourceData }: TrafficAnalyticsProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
