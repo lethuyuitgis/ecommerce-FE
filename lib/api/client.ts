@@ -48,19 +48,18 @@ export function clearAuthState() {
 export function handleUnauthorizedRedirect() {
   if (typeof window === 'undefined') return
   if (redirectingToLogin) return
-  redirectingToLogin = true
 
+  const isLoginRoute = window.location.pathname.startsWith('/login')
   const currentPath = window.location.pathname + window.location.search + window.location.hash
-  const alreadyOnLogin = window.location.pathname.startsWith('/login')
 
   clearAuthState()
 
-  if (alreadyOnLogin) {
-    // Nếu đã ở trang login thì không thêm redirect nữa để tránh vòng lặp vô hạn
-    window.location.href = '/login'
+  if (isLoginRoute) {
+    // Đang ở trang login, không redirect nữa để tránh vòng lặp
     return
   }
 
+  redirectingToLogin = true
   const redirectParam = encodeURIComponent(currentPath || '/')
   window.location.href = `/login?redirect=${redirectParam}`
 }
