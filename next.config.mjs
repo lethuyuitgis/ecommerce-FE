@@ -29,8 +29,6 @@ const nextConfig = {
   // Performance optimizations
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
-    // Enable faster route transitions
-    optimizeCss: true,
   },
   // Enable prefetching for faster navigation
   onDemandEntries: {
