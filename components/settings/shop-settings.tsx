@@ -12,7 +12,6 @@ import Image from "next/image"
 import { sellerApi, Seller } from "@/lib/api/seller"
 import { apiClientWithFile } from "@/lib/api/client"
 import { toast } from "sonner"
-import { useAuth } from "@/contexts/AuthContext"
 import { BusinessHoursForm } from "./business-hours-form"
 
 export function ShopSettings() {
