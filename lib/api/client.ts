@@ -50,9 +50,17 @@ export function handleUnauthorizedRedirect() {
   if (redirectingToLogin) return
   redirectingToLogin = true
 
+  const currentPath = window.location.pathname + window.location.search + window.location.hash
+  const alreadyOnLogin = window.location.pathname.startsWith('/login')
+
   clearAuthState()
 
-  const currentPath = window.location.pathname + window.location.search + window.location.hash
+  if (alreadyOnLogin) {
+    // Nếu đã ở trang login thì không thêm redirect nữa để tránh vòng lặp vô hạn
+    window.location.href = '/login'
+    return
+  }
+
   const redirectParam = encodeURIComponent(currentPath || '/')
   window.location.href = `/login?redirect=${redirectParam}`
 }
