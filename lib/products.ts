@@ -3,9 +3,13 @@ export interface Product {
   name: string
   price: number
   originalPrice?: number
+  comparePrice?: number
   image: string
+  images?: string[]
   rating: number
   sold: number
+  totalReviews?: number
+  quantity?: number
   discount?: number
   location?: string
   freeShip?: boolean

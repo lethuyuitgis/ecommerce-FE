@@ -1,96 +1,53 @@
-'use client'
-
-import { useEffect, useState } from "react"
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
-import { ProductGrid } from "@/components/product/product-grid"
-import { useCategory } from "@/hooks/useCategories"
+import { ProductGridServer } from "@/components/product/product-grid-server"
+import { serverCategoriesApi, serverProductsApi } from "@/lib/api/server"
 import { CategoryBreadcrumb } from "@/components/common/category-breadcrumb"
 import { CategoryFilters } from "@/components/common/category-filters"
 import { CategoryHeader } from "@/components/common/category-header"
+import { notFound } from "next/navigation"
 
-export default function CategoryPage({
+export default async function CategoryPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }> | { slug: string }
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }> | { [key: string]: string | string[] | undefined }
 }) {
-  const [slug, setSlug] = useState<string>("")
-  const [resolvedSearchParams, setResolvedSearchParams] = useState<{ [key: string]: string | string[] | undefined }>({})
+  const resolvedParams = params instanceof Promise ? await params : params
+  const resolvedSearchParams = searchParams instanceof Promise 
+    ? await searchParams 
+    : (searchParams || {})
 
-  useEffect(() => {
-    // Handle params - could be Promise or object
-    if (params instanceof Promise) {
-      params.then((resolved) => {
-        setSlug(resolved.slug)
-      })
-    } else {
-      setSlug(params.slug)
-    }
-
-    // Handle searchParams - could be Promise or object
-    if (searchParams) {
-      if (searchParams instanceof Promise) {
-        searchParams.then((resolved) => {
-          setResolvedSearchParams(resolved)
-        })
-      } else {
-        setResolvedSearchParams(searchParams)
-      }
-    }
-  }, [params, searchParams])
-
-  const { category, loading: categoryLoading } = useCategory(slug)
-
-  // Don't render until slug is ready
-  if (!slug) {
-    return (
-      <div className="min-h-screen">
-        <Header />
-        <main className="bg-gray-50">
-          <div className="container mx-auto px-4 py-8">
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Đang tải...</p>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
+  const page = parseInt((resolvedSearchParams.page as string) || '0', 10)
+  const size = 24
+  
+  // Extract filter values
+  const filterParams = {
+    minPrice: resolvedSearchParams.minPrice ? Number(resolvedSearchParams.minPrice) : undefined,
+    maxPrice: resolvedSearchParams.maxPrice ? Number(resolvedSearchParams.maxPrice) : undefined,
+    minRating: resolvedSearchParams.rating ? Number(resolvedSearchParams.rating) : undefined,
+    subcategory: Array.isArray(resolvedSearchParams.subcategory) 
+      ? resolvedSearchParams.subcategory[0] 
+      : (resolvedSearchParams.subcategory as string | undefined),
   }
 
-  if (categoryLoading) {
-    return (
-      <div className="min-h-screen">
-        <Header />
-        <main className="bg-gray-50">
-          <div className="container mx-auto px-4 py-8">
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Đang tải danh mục...</p>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
+  // Fetch category and products in parallel
+  const [categoryResponse, productsResponse] = await Promise.all([
+    serverCategoriesApi.getBySlug(resolvedParams.slug),
+    serverProductsApi.getByCategorySlug(resolvedParams.slug, page, size, filterParams),
+  ])
+  
+  if (!categoryResponse.success || !categoryResponse.data) {
+    notFound()
   }
 
-  if (!category) {
-    return (
-      <div className="min-h-screen">
-        <Header />
-        <main className="bg-gray-50">
-          <div className="container mx-auto px-4 py-8">
-            <div className="text-center py-12">
-              <p className="text-destructive">Danh mục không tồn tại</p>
-            </div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
+  const category = categoryResponse.data
+  const products = productsResponse.success && productsResponse.data?.content 
+    ? productsResponse.data.content 
+    : []
+  const totalPages = productsResponse.data?.totalPages || 0
+  const totalElements = productsResponse.data?.totalElements || 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,7 +68,14 @@ export default function CategoryPage({
               />
             </aside>
             <main className="flex-1">
-              <ProductGrid category={slug} filters={resolvedSearchParams} />
+              <ProductGridServer 
+                category={resolvedParams.slug} 
+                filters={resolvedSearchParams}
+                initialProducts={products}
+                initialTotalPages={totalPages}
+                initialTotalElements={totalElements}
+                initialPage={page}
+              />
             </main>
           </div>
         </div>

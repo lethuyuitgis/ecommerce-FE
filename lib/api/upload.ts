@@ -31,37 +31,10 @@ export const uploadApi = {
    * Upload Excel file
    */
   uploadExcel: async (file: File): Promise<ApiResponse<UploadedFile>> => {
+    const { apiClientFormData } = await import('./client')
     const formData = new FormData()
     formData.append('file', file)
-    
-    const headers: HeadersInit = {}
-    
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token')
-      const userId = localStorage.getItem('userId')
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      if (userId && userId.trim() !== '') {
-        headers['X-User-Id'] = userId
-      }
-    }
-
-    const apiBaseUrl = typeof window !== 'undefined' ? '/api' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api')
-    
-    const response = await fetch(`${apiBaseUrl}/upload/excel`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to upload file')
-    }
-
-    return data
+    return apiClientFormData<UploadedFile>('/upload/excel', formData)
   },
 
   /**
@@ -75,27 +48,9 @@ export const uploadApi = {
    * Download Excel file
    */
   downloadExcel: async (fileName: string): Promise<Blob> => {
-    const headers: HeadersInit = {}
-    
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token')
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-    }
-
-    const apiBaseUrl = typeof window !== 'undefined' ? '/api' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api')
-    
-    const response = await fetch(`${apiBaseUrl}/upload/excel/${encodeURIComponent(fileName)}`, {
-      headers,
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to download file' }))
-      throw new Error(error.message || 'Failed to download file')
-    }
-
-    return response.blob()
+    const { apiClientBlob } = await import('./client-blob')
+    const { blob } = await apiClientBlob(`/upload/excel/${encodeURIComponent(fileName)}`)
+    return blob
   },
 
   /**

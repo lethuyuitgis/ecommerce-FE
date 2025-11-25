@@ -184,33 +184,10 @@ export const sellerApi = {
   },
 
   importProducts: async (file: File): Promise<ApiResponse<{ success: number; failed: number; errors?: string[] }>> => {
+    const { apiClientFormData } = await import('./client')
     const formData = new FormData()
     formData.append('file', file)
-    
-    const headers: HeadersInit = {}
-    
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token')
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-    }
-
-    const apiBaseUrl = typeof window !== 'undefined' ? '/api' : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api')
-    
-    const response = await fetch(`${apiBaseUrl}/seller/products/import`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to import products')
-    }
-
-    return data
+    return apiClientFormData<{ success: number; failed: number; errors?: string[] }>('/seller/products/import', formData)
   },
 
   getBusinessHours: async (): Promise<ApiResponse<Record<string, { open: string; close: string }>>> => {

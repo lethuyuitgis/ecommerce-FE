@@ -13,6 +13,7 @@ import Link from "next/link"
 import { notificationsApi, Notification } from "@/lib/api/notifications"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
+import { emitChatMessage } from "@/lib/realtime/chat-events"
 
 const MAX_NOTIFICATIONS = 50
 
@@ -93,6 +94,16 @@ export function NotificationDropdown() {
           if (!payload.isRead) {
             setUnreadCount((prev) => prev + 1)
           }
+          if (isChatNotification(payload)) {
+            emitChatMessage({
+              conversationId: extractConversationId(payload.linkUrl),
+              notificationId: payload.id,
+              message: payload.message,
+              senderId: payload.userId,
+              linkUrl: payload.linkUrl,
+              raw: payload,
+            })
+          }
         } catch (error) {
           console.error("Failed to parse notification message", error)
         }
@@ -106,6 +117,24 @@ export function NotificationDropdown() {
         console.warn("WebSocket STOMP error - notifications will use polling fallback")
       }
     }
+
+function isChatNotification(notification: Notification) {
+  if (!notification?.type) return false
+  const normalized = notification.type.toUpperCase()
+  return normalized.includes("CHAT")
+}
+
+function extractConversationId(link?: string) {
+  if (!link) return undefined
+  try {
+    const url = new URL(link, typeof window !== "undefined" ? window.location.origin : "http://localhost")
+    return url.searchParams.get("conversationId") || url.searchParams.get("conversation")
+  } catch {
+    // Try fallback parsing for path segments e.g. /messages/123
+    const match = link.match(/messages\/([^/?#]+)/i)
+    return match ? match[1] : undefined
+  }
+}
 
     client.onWebSocketError = (event) => {
       // Chỉ log trong development, không spam console
@@ -135,14 +164,19 @@ export function NotificationDropdown() {
   }, [isAuthenticated, user?.userId])
 
   const fetchNotifications = async () => {
-    if (!user?.userId) return
+    if (!isAuthenticated || !user?.userId) return
     try {
       setLoading(true)
       const response = await notificationsApi.getNotifications(user.userId, 0, MAX_NOTIFICATIONS)
       if (response.success && response.data) {
         setNotifications(response.data.content)
       }
-    } catch (error) {
+    } catch (error: any) {
+      // If 401, stop trying to fetch - token expired
+      if (error?.status === 401) {
+        console.log('Token expired, stopping notification fetch')
+        return
+      }
       console.error('Failed to fetch notifications:', error)
     } finally {
       setLoading(false)
@@ -150,13 +184,18 @@ export function NotificationDropdown() {
   }
 
   const fetchUnreadCount = async () => {
-    if (!user?.userId) return
+    if (!isAuthenticated || !user?.userId) return
     try {
       const response = await notificationsApi.getUnreadCount(user.userId)
       if (response.success && response.data !== undefined) {
         setUnreadCount(Number(response.data) || 0)
       }
-    } catch (error) {
+    } catch (error: any) {
+      // If 401, stop trying to fetch - token expired
+      if (error?.status === 401) {
+        console.log('Token expired, stopping unread count fetch')
+        return
+      }
       console.error('Failed to fetch unread count:', error)
     }
   }

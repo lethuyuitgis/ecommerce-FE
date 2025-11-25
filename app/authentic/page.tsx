@@ -1,9 +1,14 @@
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Shield, CheckCircle, Award, Lock } from "lucide-react"
 
 export default function AuthenticPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen">
+      <Header />
+      <main className="bg-muted/30">
+        <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-4xl">
         <h1 className="mb-8 text-center text-3xl font-bold">Cam Kết Hàng Chính Hãng</h1>
 
@@ -80,7 +85,8 @@ export default function AuthenticPage() {
             <p>✓ Yêu cầu hóa đơn VAT khi mua hàng</p>
           </CardContent>
         </Card>
-      </div>
+      </main>
+      <Footer />
     </div>
   )
 }

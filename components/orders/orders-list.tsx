@@ -1,15 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Package, Truck, CheckCircle, XCircle, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { ordersApi, Order } from "@/lib/api/orders"
-import { useAuth } from "@/contexts/AuthContext"
-import { useRouter } from "next/navigation"
+import { Order } from "@/lib/api/orders"
+import { getImageUrl } from "@/lib/utils/image"
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   PENDING: { label: "Chờ xác nhận", color: "bg-yellow-100 text-yellow-800", icon: Package },
@@ -19,44 +18,37 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   CANCELLED: { label: "Đã hủy", color: "bg-red-100 text-red-800", icon: XCircle },
 }
 
-export function OrdersList() {
-  const { isAuthenticated } = useAuth()
-  const router = useRouter()
-  const [orders, setOrders] = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
+interface OrdersListProps {
+  initialOrders?: Order[]
+}
+
+export function OrdersList({ initialOrders = [] }: OrdersListProps) {
+  const [orders] = useState<Order[]>(initialOrders)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login')
-      return
+  // Filter orders based on search and tab
+  const filteredOrders = useMemo(() => {
+    let filtered = orders
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (order) =>
+          order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          order.items?.some((item) =>
+            item.productName?.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+      )
     }
 
-    const fetchOrders = async () => {
-      try {
-        setLoading(true)
-        const response = await ordersApi.getOrders(0, 100)
-        if (response.success && response.data) {
-          setOrders(response.data.content || [])
-        }
-      } catch (error) {
-        console.error('Failed to fetch orders:', error)
-      } finally {
-        setLoading(false)
-      }
+    // Filter by status tab
+    if (activeTab !== "all") {
+      filtered = filtered.filter((order) => order.status === activeTab.toUpperCase())
     }
 
-    fetchOrders()
-  }, [isAuthenticated, router])
-
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.items?.some((item) => item.productName?.toLowerCase().includes(searchQuery.toLowerCase()))
-    const matchesTab = activeTab === "all" || order.status === activeTab.toUpperCase()
-    return matchesSearch && matchesTab
-  })
+    return filtered
+  }, [orders, searchQuery, activeTab])
 
   return (
     <div className="rounded-lg bg-white p-6">
@@ -84,11 +76,7 @@ export function OrdersList() {
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4">
-          {loading ? (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground">Đang tải đơn hàng...</p>
-            </div>
-          ) : filteredOrders.length === 0 ? (
+          {filteredOrders.length === 0 ? (
             <div className="py-12 text-center">
               <Package className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
               <p className="text-lg font-medium text-foreground">Không có đơn hàng nào</p>
@@ -131,7 +119,7 @@ export function OrdersList() {
                       <div key={item.id} className="flex gap-4">
                         <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded border">
                           <img
-                            src={item.productImage || "/placeholder.svg"}
+                            src={getImageUrl(item.productImage)}
                             alt={item.productName}
                             className="h-full w-full object-cover"
                           />

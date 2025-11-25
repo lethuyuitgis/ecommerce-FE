@@ -70,51 +70,50 @@ export async function handleRequest(
     const headers: HeadersInit = {}
     
     if (isFormData) {
-      // For file uploads, parse FormData and recreate using form-data package
-      // This ensures proper multipart/form-data encoding for Node.js
+      // For file uploads, try to forward raw body first (most reliable)
       try {
-        const formData = await request.formData()
-        const nodeFormData = new FormData()
-        
-        // Copy all fields from original FormData
-        for (const [key, value] of formData.entries()) {
-          if (value instanceof File) {
-            // Convert File to Buffer for form-data package
-            const arrayBuffer = await value.arrayBuffer()
-            const buffer = Buffer.from(arrayBuffer)
-            nodeFormData.append(key, buffer, {
-              filename: value.name,
-              contentType: value.type || 'application/octet-stream',
-            })
-          } else {
-            nodeFormData.append(key, value as string)
-          }
-        }
-        
-        // form-data package returns a stream, forward it directly
-        body = nodeFormData as any
-        // Get the Content-Type from form-data (includes boundary)
-        // Remove charset=UTF-8 as Spring Boot doesn't accept it for multipart
-        const formDataHeaders = nodeFormData.getHeaders()
-        if (formDataHeaders['content-type']) {
-          let contentType = formDataHeaders['content-type'] as string
-          // Remove charset parameter from Content-Type for multipart
-          contentType = contentType.replace(/;?\s*charset=[^;]+/gi, '')
-          headers['Content-Type'] = contentType
+        const arrayBuffer = await request.arrayBuffer()
+        body = arrayBuffer
+        // Remove charset parameter from Content-Type for multipart
+        if (contentType) {
+          let fixedContentType = contentType.replace(/;?\s*charset=[^;]+/gi, '')
+          headers['Content-Type'] = fixedContentType
         }
       } catch (error) {
-        console.error('Error processing FormData:', error)
-        // Fallback: try to forward raw body
+        console.error('Error forwarding raw FormData body:', error)
+        // Fallback: parse FormData and recreate using form-data package
         try {
-          const arrayBuffer = await request.arrayBuffer()
-          body = arrayBuffer
-          if (contentType) {
+          const formData = await request.formData()
+          const nodeFormData = new FormData()
+          
+          // Copy all fields from original FormData
+          for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+              // Convert File to Buffer for form-data package
+              const arrayBuffer = await value.arrayBuffer()
+              const buffer = Buffer.from(arrayBuffer)
+              nodeFormData.append(key, buffer, {
+                filename: value.name || 'file',
+                contentType: value.type || 'application/octet-stream',
+                knownLength: buffer.length,
+              })
+            } else {
+              nodeFormData.append(key, value as string)
+            }
+          }
+          
+          // form-data package returns a stream, forward it directly
+          body = nodeFormData as any
+          // Get the Content-Type from form-data (includes boundary)
+          const formDataHeaders = nodeFormData.getHeaders()
+          if (formDataHeaders['content-type']) {
+            let contentType = formDataHeaders['content-type'] as string
             // Remove charset parameter from Content-Type for multipart
-            let fixedContentType = contentType.replace(/;?\s*charset=[^;]+/gi, '')
-            headers['Content-Type'] = fixedContentType
+            contentType = contentType.replace(/;?\s*charset=[^;]+/gi, '')
+            headers['Content-Type'] = contentType
           }
         } catch (e) {
-          console.error('Error forwarding FormData:', e)
+          console.error('Error processing FormData:', e)
           throw new Error('Failed to process FormData')
         }
       }
@@ -123,6 +122,17 @@ export async function handleRequest(
       try {
         const textBody = await request.text()
         if (textBody) {
+          // Debug: log request body for POST/PUT/PATCH requests
+          if (['POST', 'PUT', 'PATCH'].includes(method)) {
+            try {
+              const parsed = JSON.parse(textBody)
+              if (Array.isArray(parsed)) {
+                console.warn(`[API Proxy] Warning: Request body is an array for ${method} ${path}:`, parsed)
+              }
+            } catch {
+              // Not JSON, ignore
+            }
+          }
           body = textBody
           headers['Content-Type'] = 'application/json'
         }
@@ -173,32 +183,44 @@ export async function handleRequest(
       })
     }
 
-    // Check if response is JSON
+    // Check if response is JSON or binary (images, files, etc.)
     const contentTypeHeader = response.headers.get('content-type')
-    let data: any
     
     if (contentTypeHeader?.includes('application/json')) {
-      data = await response.json()
+      // JSON response
+      const data = await response.json()
+      return NextResponse.json(data, {
+        status: response.status,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-User-Id',
+        },
+      })
+    } else if (contentTypeHeader?.includes('image/') || contentTypeHeader?.includes('video/') || contentTypeHeader?.includes('application/octet-stream')) {
+      // Binary response (images, videos, files) - stream directly
+      const arrayBuffer = await response.arrayBuffer()
+      return new NextResponse(arrayBuffer, {
+        status: response.status,
+        headers: {
+          'Content-Type': contentTypeHeader || 'application/octet-stream',
+          'Content-Length': response.headers.get('content-length') || arrayBuffer.byteLength.toString(),
+          'Cache-Control': response.headers.get('cache-control') || 'public, max-age=31536000',
+          'Access-Control-Allow-Origin': '*',
+        },
+      })
     } else {
-      // For non-JSON responses, return as text
+      // For other non-JSON responses (text, etc.), return as text
       const text = await response.text()
       return new NextResponse(text, {
         status: response.status,
         headers: {
           'Content-Type': contentTypeHeader || 'text/plain',
+          'Access-Control-Allow-Origin': '*',
         },
       })
     }
-
-    return NextResponse.json(data, {
-      status: response.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-User-Id',
-      },
-    })
   } catch (error: any) {
     console.error('API Proxy Error:', error)
     

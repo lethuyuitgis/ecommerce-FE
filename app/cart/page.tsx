@@ -2,8 +2,17 @@ import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { CartItems } from "@/components/cart/cart-items"
 import { CartSummary } from "@/components/cart/cart-summary"
+import { serverCartApi } from "@/lib/api/server"
+import { redirect } from "next/navigation"
 
-export default function CartPage() {
+export default async function CartPage() {
+  // Fetch cart data on server
+  const cartResponse = await serverCartApi.getCart()
+  
+  const cartItems = cartResponse.success && cartResponse.data?.items
+    ? (Array.isArray(cartResponse.data.items) ? cartResponse.data.items : [])
+    : []
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -20,10 +29,10 @@ export default function CartPage() {
 
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <CartItems />
+              <CartItems initialCartItems={cartItems} />
             </div>
             <div>
-              <CartSummary />
+              <CartSummary initialCartItems={cartItems} />
             </div>
           </div>
         </div>

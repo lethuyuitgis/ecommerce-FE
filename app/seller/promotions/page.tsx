@@ -1,6 +1,3 @@
-"use client"
-
-
 import { CreatePromotionDialog } from "@/components/seller/create-promotion-dialog"
 import { CreateVoucherDialog } from "@/components/seller/create-voucher-dialog"
 import { PromotionsTable } from "@/components/seller/promotions-table"
@@ -11,20 +8,17 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Plus } from 'lucide-react'
 
-
 export default function PromotionsPage() {
   return (
     <div className="flex min-h-screen bg-background">
       <SellerSidebar />
       <div className="flex-1">
         <div className="p-6 lg:p-8">
-          {/* Header */}
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-foreground">Quản Lý Khuyến Mãi</h1>
             <p className="text-muted-foreground mt-1">Tạo và quản lý các chương trình khuyến mãi</p>
           </div>
 
-          {/* Tabs */}
           <Tabs defaultValue="promotions" className="space-y-6">
             <TabsList>
               <TabsTrigger value="promotions">Khuyến mãi</TabsTrigger>

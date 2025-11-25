@@ -1,60 +1,24 @@
-'use client'
-
-import { Suspense, useEffect, useState } from "react"
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { ProductCard } from "@/components/product/product-card"
-import { Product, productsApi } from "@/lib/api/products"
-import { useSearchParams } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Loader2, Search as SearchIcon } from "lucide-react"
+import { serverProductsApi } from "@/lib/api/server"
+import { Product } from "@/lib/api/products"
+import { SearchClient } from "./search-client"
+import { Search as SearchIcon } from "lucide-react"
 
-function SearchContent() {
-    const searchParams = useSearchParams()
-    const keyword = searchParams.get('q') || ''
-    const [page, setPage] = useState(0)
-    const [products, setProducts] = useState<Product[]>([])
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<Error | null>(null)
-    const [totalPages, setTotalPages] = useState(0)
-    const [totalElements, setTotalElements] = useState(0)
+interface SearchPageProps {
+    searchParams: Promise<{ q?: string; page?: string }> | { q?: string; page?: string }
+}
+
+async function SearchContent({ keyword, page }: { keyword: string; page: number }) {
     const size = 24
-
-    useEffect(() => {
-        if (!keyword) {
-            setProducts([])
-            setLoading(false)
-            return
-        }
-
-        const fetchProducts = async () => {
-            try {
-                setLoading(true)
-                setError(null)
-                const response = await productsApi.search(keyword, page, size)
-                if (response.success && response.data) {
-                    setProducts(response.data.content || [])
-                    setTotalPages(response.data.totalPages || 0)
-                    setTotalElements(response.data.totalElements || 0)
-                } else {
-                    setError(new Error(response.message || 'Không thể tìm kiếm sản phẩm'))
-                }
-            } catch (err) {
-                setError(err as Error)
-                setProducts([])
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        const timeoutId = setTimeout(fetchProducts, 300) // Debounce
-        return () => clearTimeout(timeoutId)
-    }, [keyword, page, size])
-
-    // Reset page when keyword changes
-    useEffect(() => {
-        setPage(0)
-    }, [keyword])
+    const response = await serverProductsApi.search(keyword, page, size)
+    
+    const products: Product[] = response.success && response.data?.content 
+        ? response.data.content 
+        : []
+    const totalPages = response.data?.totalPages || 0
+    const totalElements = response.data?.totalElements || 0
 
     // Transform API product to component product format
     const transformProduct = (product: Product) => ({
@@ -76,28 +40,6 @@ function SearchContent() {
                     <SearchIcon className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
                     <p className="text-lg text-muted-foreground">Vui lòng nhập từ khóa tìm kiếm</p>
                     <p className="text-sm text-muted-foreground mt-2">Sử dụng thanh tìm kiếm ở trên để tìm sản phẩm</p>
-                </div>
-            </div>
-        )
-    }
-
-    if (loading && products.length === 0) {
-        return (
-            <div className="container mx-auto px-4 py-8">
-                <div className="text-center py-12">
-                    <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary mb-4" />
-                    <p className="text-muted-foreground">Đang tìm kiếm "{keyword}"...</p>
-                </div>
-            </div>
-        )
-    }
-
-    if (error) {
-        return (
-            <div className="container mx-auto px-4 py-8">
-                <div className="text-center py-12">
-                    <p className="text-destructive mb-2">Có lỗi xảy ra khi tìm kiếm</p>
-                    <p className="text-sm text-muted-foreground">{error.message}</p>
                 </div>
             </div>
         )
@@ -128,57 +70,9 @@ function SearchContent() {
                         ))}
                     </div>
 
-                    {/* Pagination */}
+                    {/* Pagination - Client component for interactivity */}
                     {totalPages > 1 && (
-                        <div className="mt-8 flex items-center justify-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.max(0, p - 1))}
-                                disabled={page === 0 || loading}
-                            >
-                                Trước
-                            </Button>
-                            <div className="flex items-center gap-1">
-                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                    let pageNum: number
-                                    if (totalPages <= 5) {
-                                        pageNum = i
-                                    } else if (page < 3) {
-                                        pageNum = i
-                                    } else if (page > totalPages - 4) {
-                                        pageNum = totalPages - 5 + i
-                                    } else {
-                                        pageNum = page - 2 + i
-                                    }
-                                    return (
-                                        <Button
-                                            key={pageNum}
-                                            variant={page === pageNum ? "default" : "outline"}
-                                            size="sm"
-                                            onClick={() => setPage(pageNum)}
-                                            disabled={loading}
-                                        >
-                                            {pageNum + 1}
-                                        </Button>
-                                    )
-                                })}
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                                disabled={page >= totalPages - 1 || loading}
-                            >
-                                Sau
-                            </Button>
-                        </div>
-                    )}
-
-                    {loading && products.length > 0 && (
-                        <div className="mt-4 text-center">
-                            <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
-                        </div>
+                        <SearchClient keyword={keyword} currentPage={page} totalPages={totalPages} />
                     )}
                 </>
             )}
@@ -186,20 +80,16 @@ function SearchContent() {
     )
 }
 
-export default function SearchPage() {
+export default async function SearchPage({ searchParams }: SearchPageProps) {
+    const resolvedParams = searchParams instanceof Promise ? await searchParams : searchParams
+    const keyword = resolvedParams.q || ''
+    const page = parseInt(resolvedParams.page || '0', 10)
+
     return (
         <div className="min-h-screen">
             <Header />
             <main className="bg-muted/30">
-                <Suspense fallback={
-                    <div className="container mx-auto px-4 py-8">
-                        <div className="text-center py-12">
-                            <p className="text-muted-foreground">Đang tải...</p>
-                        </div>
-                    </div>
-                }>
-                    <SearchContent />
-                </Suspense>
+                <SearchContent keyword={keyword} page={page} />
             </main>
             <Footer />
         </div>

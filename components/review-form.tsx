@@ -13,11 +13,12 @@ import Image from "next/image"
 
 interface ReviewFormProps {
     productId: string
+    orderItemId?: string
     onClose: () => void
     onSuccess?: () => void
 }
 
-export function ReviewForm({ productId, onClose, onSuccess }: ReviewFormProps) {
+export function ReviewForm({ productId, orderItemId, onClose, onSuccess }: ReviewFormProps) {
     const { isAuthenticated } = useAuth()
     const [rating, setRating] = useState(5)
     const [title, setTitle] = useState("")
@@ -110,6 +111,7 @@ export function ReviewForm({ productId, onClose, onSuccess }: ReviewFormProps) {
                 rating,
                 title: title.trim(),
                 comment: comment.trim(),
+                orderItemId: orderItemId || undefined,
             }
 
             // Use createReviewWithMedia if there are images or videos

@@ -430,7 +430,7 @@ export function RegisterForm() {
         </Button>
       </div>
 
-      <div id="google-signin-button-register" className="mt-3 w-full "></div>
+      <div id="google-signin-button-register" className="sr-only" aria-hidden="true"></div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Bạn đã có tài khoản?{" "}

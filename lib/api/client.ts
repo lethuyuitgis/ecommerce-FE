@@ -1,5 +1,7 @@
+import { removeCookie } from '@/lib/utils/cookies'
+
 // Use Next.js API route as proxy in browser, direct backend URL in server-side
-const getApiBaseUrl = () => {
+export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
     // Client-side: use Next.js API proxy to avoid CORS issues
     return '/api'
@@ -26,7 +28,36 @@ export class ApiError extends Error {
   }
 }
 
-async function getAuthHeaders(): Promise<HeadersInit> {
+const AUTH_STORAGE_KEYS = ['token', 'refreshToken', 'userId', 'email', 'fullName', 'userType', 'avatarUrl']
+let redirectingToLogin = false
+
+export function clearAuthState() {
+  if (typeof window === 'undefined') return
+  AUTH_STORAGE_KEYS.forEach((key) => {
+    try {
+      window.localStorage.removeItem(key)
+      window.sessionStorage?.removeItem?.(key)
+    } catch {
+      // ignore
+    }
+  })
+  removeCookie('token')
+  removeCookie('userId')
+}
+
+export function handleUnauthorizedRedirect() {
+  if (typeof window === 'undefined') return
+  if (redirectingToLogin) return
+  redirectingToLogin = true
+
+  clearAuthState()
+
+  const currentPath = window.location.pathname + window.location.search + window.location.hash
+  const redirectParam = encodeURIComponent(currentPath || '/')
+  window.location.href = `/login?redirect=${redirectParam}`
+}
+
+export async function getAuthHeaders(): Promise<HeadersInit> {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   }
@@ -37,9 +68,21 @@ async function getAuthHeaders(): Promise<HeadersInit> {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
     }
-    // Backend requires X-User-Id
     if (userId && userId.trim() !== '') {
       headers['X-User-Id'] = userId
+    }
+  } else {
+    try {
+      const { getAuthFromCookies } = await import('../server/auth-cookies')
+      const { token, userId } = await getAuthFromCookies()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      if (userId) {
+        headers['X-User-Id'] = userId
+      }
+    } catch (error) {
+      // Ignore - likely running in an environment without Next.js headers
     }
   }
 
@@ -99,22 +142,84 @@ async function fetchApi<T>(
 ): Promise<ApiResponse<T>> {
   const headers = await getAuthHeaders()
   
+  // If body is FormData, don't set Content-Type (browser will set it with boundary)
+  const isFormData = options.body instanceof FormData
+  const finalHeaders: HeadersInit = isFormData
+    ? { ...options.headers }
+    : {
+        ...headers,
+        ...options.headers,
+      }
+  
+  // Add auth headers even for FormData
+  if (isFormData) {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token')
+      const userId = localStorage.getItem('userId')
+      if (token) {
+        finalHeaders['Authorization'] = `Bearer ${token}`
+      }
+      if (userId && userId.trim() !== '') {
+        finalHeaders['X-User-Id'] = userId
+      }
+    }
+  }
+  
   const config: RequestInit = {
     ...options,
-    headers: {
-      ...headers,
-      ...options.headers,
-    },
+    headers: finalHeaders,
   }
 
   try {
     const apiBaseUrl = getApiBaseUrl()
-    const response = await fetch(`${apiBaseUrl}${endpoint}`, config)
+    const url = `${apiBaseUrl}${endpoint}`
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[apiClient] Fetching:', url, { method: config.method || 'GET' })
+    }
+    
+    const response = await fetch(url, config)
+
+    if (response.status === 401 || response.status === 403) {
+      clearAuthState()
+      handleUnauthorizedRedirect()
+      const message =
+        response.status === 401
+          ? 'Unauthorized - Token expired'
+          : 'Forbidden - Please login again'
+      throw new ApiError(message, response.status, { redirect: true })
+    }
     
     // Try to parse JSON response
-    let data: any
+    let data: any = null
     try {
-      data = await response.json()
+      const text = await response.text()
+      if (text && text.trim()) {
+        try {
+          data = JSON.parse(text)
+        } catch (parseErr) {
+          // If not valid JSON, use text as message
+          if (!response.ok) {
+            throw new ApiError(
+              text || `HTTP ${response.status}: ${response.statusText}`,
+              response.status,
+              { statusText: response.statusText, rawText: text }
+            )
+          }
+          data = { message: text || `HTTP ${response.status}: ${response.statusText}` }
+        }
+      } else {
+        // Empty response body
+        if (!response.ok) {
+          throw new ApiError(
+            `HTTP ${response.status}: ${response.statusText}`,
+            response.status,
+            { statusText: response.statusText }
+          )
+        }
+        // Empty but ok response - return empty object
+        data = {}
+      }
     } catch (parseError) {
       // If response is not JSON, create error response
       if (!response.ok) {
@@ -129,19 +234,157 @@ async function fetchApi<T>(
 
     // Check if response is ok
     if (!response.ok) {
+      const errorMessage = data?.message || data?.error || (typeof data === 'string' ? data : `HTTP ${response.status}: ${response.statusText}`)
       throw new ApiError(
-        data.message || data.error || 'An error occurred',
+        typeof errorMessage === 'string' ? errorMessage : 'An error occurred',
         response.status,
         data
       )
     }
 
-    return data
+    // Check if API response indicates failure (even if HTTP status is ok)
+    // Only check if data exists and is an object with 'success' property
+    if (data && typeof data === 'object' && data !== null && 'success' in data) {
+      if (!data.success) {
+        const errorMessage = data.message || data.error || 'API request failed'
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[apiClient] API returned success=false:', { url, data, errorMessage })
+        }
+        throw new ApiError(
+          typeof errorMessage === 'string' ? errorMessage : 'API request failed',
+          response.status,
+          data
+        )
+      }
+      // If success is true, return the data as is
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[apiClient] Success response:', { url, hasData: !!data.data })
+      }
+      return data
+    }
+
+    // If data doesn't have 'success' property, return it as is (might be direct data)
+    // Return empty object only if data is null/undefined
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[apiClient] Response without success property:', { url, data })
+    }
+    return data ?? {}
+  } catch (error) {
+    if (error instanceof ApiError) {
+      if (error.status === 401 || error.status === 403) {
+        clearAuthState()
+        handleUnauthorizedRedirect()
+      }
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[apiClient] ApiError:', { endpoint, error: error.message, status: error.status })
+      }
+      throw error
+    }
+    
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      const errorMsg = 'Network error: Unable to connect to server'
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[apiClient] Network error:', { endpoint, error: error.message })
+      }
+      throw new ApiError(errorMsg, 0, error)
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[apiClient] Unexpected error:', { endpoint, error })
+    }
+    throw new ApiError(error instanceof Error ? error.message : 'Network error', 0, error)
+  }
+}
+
+/**
+ * API client for FormData requests (file uploads, multipart forms)
+ */
+export async function apiClientFormData<T>(
+  endpoint: string,
+  formData: FormData,
+  options: RequestInit = {}
+): Promise<ApiResponse<T>> {
+  const headers: HeadersInit = {}
+  
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token')
+    const userId = localStorage.getItem('userId')
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    if (userId && userId.trim() !== '') {
+      headers['X-User-Id'] = userId
+    }
+  } else {
+    try {
+      const { getAuthFromCookies } = await import('../server/auth-cookies')
+      const { token, userId } = await getAuthFromCookies()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      if (userId) {
+        headers['X-User-Id'] = userId
+      }
+    } catch (error) {
+      // Ignore - likely running in an environment without Next.js headers
+    }
+  }
+
+  try {
+    const apiBaseUrl = getApiBaseUrl()
+    const url = `${apiBaseUrl}${endpoint}`
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[apiClientFormData] Fetching:', url)
+    }
+    
+    const response = await fetch(url, {
+      ...options,
+      method: options.method || 'POST',
+      headers,
+      body: formData,
+    })
+
+    if (response.status === 401 || response.status === 403) {
+      clearAuthState()
+      handleUnauthorizedRedirect()
+      const message =
+        response.status === 401
+          ? 'Unauthorized - Token expired'
+          : 'Forbidden - Please login again'
+      throw new ApiError(message, response.status, { redirect: true })
+    }
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new ApiError(
+        data.message || data.error || 'Request failed',
+        response.status,
+        data
+      )
+    }
+
+    // Check if API response indicates failure
+    if (data && typeof data === 'object' && data !== null && 'success' in data) {
+      if (!data.success) {
+        const errorMessage = data.message || data.error || 'API request failed'
+        throw new ApiError(
+          typeof errorMessage === 'string' ? errorMessage : 'API request failed',
+          response.status,
+          data
+        )
+      }
+      return data
+    }
+
+    return data ?? { success: true, data: data as T }
   } catch (error) {
     if (error instanceof ApiError) {
       throw error
     }
-    throw new ApiError('Network error', 0, error)
+    throw new ApiError('Request error', 0, error)
   }
 }
 
@@ -153,40 +396,5 @@ export async function apiClientWithFile<T>(
 ): Promise<ApiResponse<T>> {
   const formData = new FormData()
   formData.append('file', file)
-  
-  const headers: HeadersInit = {}
-  
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token')
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-  }
-
-  try {
-    const apiBaseUrl = getApiBaseUrl()
-    const response = await fetch(`${apiBaseUrl}${endpoint}?folder=${folder}`, {
-      ...options,
-      method: 'POST',
-      headers,
-      body: formData,
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new ApiError(
-        data.message || 'Upload failed',
-        response.status,
-        data
-      )
-    }
-
-    return data
-  } catch (error) {
-    if (error instanceof ApiError) {
-      throw error
-    }
-    throw new ApiError('Upload error', 0, error)
-  }
+  return apiClientFormData<T>(`${endpoint}?folder=${folder}`, formData, options)
 }

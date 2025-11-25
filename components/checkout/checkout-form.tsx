@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { userApi, UserAddress } from "@/lib/api/user"
+import { paymentApi, PaymentMethod } from "@/lib/api/payment"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -49,6 +50,35 @@ export function CheckoutForm({
     note: externalNote || "",
   })
   const [useNewAddress, setUseNewAddress] = useState(false)
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+
+  useEffect(() => {
+    const fetchPaymentMethods = async () => {
+      try {
+        const response = await paymentApi.getMethods()
+        if (response.success && response.data) {
+          setPaymentMethods(response.data)
+          // Set default payment method if available
+          if (response.data.length > 0 && !externalPaymentMethod) {
+            const defaultMethod = response.data.find(m => m.isActive) || response.data[0]
+            if (defaultMethod) {
+              setPaymentMethod(defaultMethod.code || defaultMethod.id)
+              onPaymentMethodChange?.(defaultMethod.code || defaultMethod.id)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch payment methods:', error)
+        // Fallback to default methods
+        setPaymentMethods([
+          { id: 'cod', code: 'cod', name: 'Thanh toán khi nhận hàng (COD)', enabled: true },
+          { id: 'vnpay', code: 'vnpay', name: 'VNPay', enabled: true },
+        ])
+      }
+    }
+
+    fetchPaymentMethods()
+  }, [])
 
   const handlePaymentMethodChange = (method: string) => {
     setPaymentMethod(method)
@@ -292,64 +322,96 @@ export function CheckoutForm({
         </div>
         <RadioGroup value={paymentMethod} onValueChange={handlePaymentMethodChange}>
           <div className="space-y-3">
-            <div className="flex items-center space-x-3 rounded-lg border p-4">
-              <RadioGroupItem value="cod" id="cod" />
-              <Label htmlFor="cod" className="flex flex-1 cursor-pointer items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">Thanh toán khi nhận hàng (COD)</div>
-                  <div className="text-sm text-muted-foreground">Thanh toán bằng tiền mặt khi nhận hàng</div>
-                </div>
-              </Label>
-            </div>
+            {paymentMethods.length > 0 ? (
+              paymentMethods
+                .filter(method => method.isActive !== false && method.enabled !== false)
+                .map((method) => {
+                  const methodCode = (method.code || method.id || '').toLowerCase()
+                  const isVNPay = methodCode.includes('vnpay')
+                  const isCOD = methodCode.includes('cod') || methodCode === 'cod'
+                  const isMoMo = methodCode.includes('momo')
+                  const isZaloPay = methodCode.includes('zalopay')
+                  const isBank = methodCode.includes('bank') || methodCode.includes('transfer')
 
-            <div className="flex items-center space-x-3 rounded-lg border p-4">
-              <RadioGroupItem value="bank" id="bank" />
-              <Label htmlFor="bank" className="flex flex-1 cursor-pointer items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <CreditCard className="h-5 w-5 text-primary" />
+                  return (
+                    <div key={method.id} className="flex items-center space-x-3 rounded-lg border p-4">
+                      <RadioGroupItem value={method.code || method.id} id={method.id} />
+                      <Label htmlFor={method.id} className="flex flex-1 cursor-pointer items-center gap-3">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                          isVNPay ? 'bg-blue-100' :
+                          isMoMo ? 'bg-pink-100' :
+                          isZaloPay ? 'bg-blue-100' :
+                          'bg-primary/10'
+                        }`}>
+                          {isVNPay ? (
+                            <span className="text-lg font-bold text-blue-600">VN</span>
+                          ) : isMoMo ? (
+                            <span className="text-lg font-bold text-pink-600">M</span>
+                          ) : isZaloPay ? (
+                            <span className="text-lg font-bold text-blue-600">Z</span>
+                          ) : isCOD ? (
+                            <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                              />
+                            </svg>
+                          ) : (
+                            <CreditCard className="h-5 w-5 text-primary" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-medium text-foreground">{method.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {method.description || 
+                              (isCOD ? 'Thanh toán bằng tiền mặt khi nhận hàng' :
+                               isVNPay ? 'Thanh toán qua cổng VNPay' :
+                               isBank ? 'Chuyển khoản qua tài khoản ngân hàng' :
+                               'Thanh toán trực tuyến')}
+                          </div>
+                        </div>
+                      </Label>
+                    </div>
+                  )
+                })
+            ) : (
+              // Fallback to default methods while loading
+              <>
+                <div className="flex items-center space-x-3 rounded-lg border p-4">
+                  <RadioGroupItem value="cod" id="cod" />
+                  <Label htmlFor="cod" className="flex flex-1 cursor-pointer items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-medium text-foreground">Thanh toán khi nhận hàng (COD)</div>
+                      <div className="text-sm text-muted-foreground">Thanh toán bằng tiền mặt khi nhận hàng</div>
+                    </div>
+                  </Label>
                 </div>
-                <div>
-                  <div className="font-medium text-foreground">Chuyển khoản ngân hàng</div>
-                  <div className="text-sm text-muted-foreground">Chuyển khoản qua tài khoản ngân hàng</div>
+                <div className="flex items-center space-x-3 rounded-lg border p-4">
+                  <RadioGroupItem value="vnpay" id="vnpay" />
+                  <Label htmlFor="vnpay" className="flex flex-1 cursor-pointer items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                      <span className="text-lg font-bold text-blue-600">VN</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-foreground">VNPay</div>
+                      <div className="text-sm text-muted-foreground">Thanh toán qua cổng VNPay</div>
+                    </div>
+                  </Label>
                 </div>
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-3 rounded-lg border p-4">
-              <RadioGroupItem value="momo" id="momo" />
-              <Label htmlFor="momo" className="flex flex-1 cursor-pointer items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100">
-                  <span className="text-lg font-bold text-pink-600">M</span>
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">Ví MoMo</div>
-                  <div className="text-sm text-muted-foreground">Thanh toán qua ví điện tử MoMo</div>
-                </div>
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-3 rounded-lg border p-4">
-              <RadioGroupItem value="zalopay" id="zalopay" />
-              <Label htmlFor="zalopay" className="flex flex-1 cursor-pointer items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                  <span className="text-lg font-bold text-blue-600">Z</span>
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">ZaloPay</div>
-                  <div className="text-sm text-muted-foreground">Thanh toán qua ví điện tử ZaloPay</div>
-                </div>
-              </Label>
-            </div>
+              </>
+            )}
           </div>
         </RadioGroup>
       </div>

@@ -88,4 +88,15 @@ export const ordersApi = {
       body: JSON.stringify({ status }),
     })
   },
+
+  checkPurchase: async (productId: string): Promise<ApiResponse<PurchaseStatus>> => {
+    return apiClient<PurchaseStatus>(`/orders/check-purchase/${productId}`)
+  },
+}
+
+export interface PurchaseStatus {
+  hasPurchased: boolean
+  orderItemId?: string
+  orderId?: string
+  orderNumber?: string
 }

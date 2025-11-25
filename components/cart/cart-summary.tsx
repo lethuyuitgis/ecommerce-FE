@@ -6,18 +6,26 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
 import { useCart } from "@/hooks/useCart"
+import { CartItem as CartItemType } from "@/lib/api/cart"
 
-export function CartSummary() {
+interface CartSummaryProps {
+  initialCartItems?: CartItemType[]
+}
+
+export function CartSummary({ initialCartItems = [] }: CartSummaryProps) {
   const { cartItems } = useCart()
   const [voucherCode, setVoucherCode] = useState("")
 
+  // Use initial data from server if available, otherwise use context
+  const displayItems = cartItems.length > 0 ? cartItems : initialCartItems
+
   // Calculate subtotal from cartItems
   const subtotal = useMemo(() => {
-    return cartItems.reduce((sum, item) => {
+    return displayItems.reduce((sum, item) => {
       const price = item.variantPrice || item.productPrice || 0
       return sum + (price * item.quantity)
     }, 0)
-  }, [cartItems])
+  }, [displayItems])
 
   const shipping = 30000
   const discount = 0

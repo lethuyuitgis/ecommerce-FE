@@ -27,11 +27,16 @@ export function ProfileInfo() {
     birthDate: "",
   })
 
+  const { isAuthenticated } = useAuth()
+
   useEffect(() => {
-    fetchProfile()
-  }, [])
+    if (isAuthenticated) {
+      fetchProfile()
+    }
+  }, [isAuthenticated])
 
   const fetchProfile = async () => {
+    if (!isAuthenticated) return
     try {
       setLoading(true)
       const response = await userApi.getProfile()
@@ -45,7 +50,12 @@ export function ProfileInfo() {
           birthDate: response.data.birthDate || "",
         })
       }
-    } catch (error) {
+    } catch (error: any) {
+      // If 401, token expired - will be handled by apiClient
+      if (error?.status === 401) {
+        console.log('Token expired, stopping profile fetch')
+        return
+      }
       console.error('Failed to fetch profile:', error)
       toast.error("Tải thông tin thất bại")
     } finally {

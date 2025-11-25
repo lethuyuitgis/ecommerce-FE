@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { useRouteLoading } from "@/contexts/RouteLoadingContext"
+import { getImageUrl } from "@/lib/utils/image"
 
 interface ProductCardProps {
   product: Product
@@ -57,7 +58,7 @@ export function ProductCard({ product }: ProductCardProps) {
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
           <img
-            src={product.image || "/placeholder.svg"}
+            src={getImageUrl(product.image)}
             alt={product.name}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
@@ -96,10 +97,20 @@ export function ProductCard({ product }: ProductCardProps) {
         <CardContent className="p-3">
           <h3 className="mb-2 line-clamp-2 text-sm leading-tight text-foreground">{product.name}</h3>
           <div className="mb-2 flex items-baseline gap-2">
-            <span className="text-lg font-semibold text-primary">₫{product.price.toLocaleString("vi-VN")}</span>
-            {product.originalPrice && (
+            {/* Hiển thị giá mới (giá đã giảm) */}
+            <span className="text-lg font-semibold text-primary">
+              ₫{product.price.toLocaleString("vi-VN")}
+            </span>
+            {/* Hiển thị giá cũ (comparePrice hoặc originalPrice) nếu có */}
+            {(product.originalPrice || product.comparePrice) && (
               <span className="text-xs text-muted-foreground line-through">
-                ₫{product.originalPrice.toLocaleString("vi-VN")}
+                ₫{(product.originalPrice || product.comparePrice || 0).toLocaleString("vi-VN")}
+              </span>
+            )}
+            {/* Hiển thị % giảm giá nếu có */}
+            {(product.originalPrice || product.comparePrice) && product.price && (
+              <span className="text-xs font-medium text-red-500">
+                -{Math.round(((product.originalPrice || product.comparePrice || product.price) - product.price) / (product.originalPrice || product.comparePrice || product.price) * 100)}%
               </span>
             )}
           </div>

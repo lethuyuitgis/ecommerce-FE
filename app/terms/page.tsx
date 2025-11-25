@@ -1,6 +1,12 @@
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
+
 export default function TermsPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen">
+      <Header />
+      <main className="bg-muted/30">
+        <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-4xl">
         <h1 className="mb-8 text-3xl font-bold">Điều Khoản Sử Dụng</h1>
 
@@ -53,7 +59,8 @@ export default function TermsPage() {
             </p>
           </section>
         </div>
-      </div>
+      </main>
+      <Footer />
     </div>
   )
 }

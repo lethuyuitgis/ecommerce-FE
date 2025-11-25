@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Edit, Trash2, Copy, Eye, EyeOff } from "lucide-react"
+import { MoreHorizontal, Edit, Trash2, Copy, Eye, EyeOff, Star, Zap } from "lucide-react"
 import { EditProductDialog } from "./edit-product-dialog"
 import {
   AlertDialog,
@@ -162,6 +162,50 @@ export function ProductsTable({
     setSelectedProducts((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]))
   }
 
+  const handleSetFeatured = async (product: Product, featured: boolean) => {
+    try {
+      const response = await productsApi.setFeatured(product.id, featured)
+      if (response.success) {
+        toast.success(featured ? "Đã đặt làm sản phẩm nổi bật" : "Đã bỏ đặt làm sản phẩm nổi bật")
+        // Refresh products
+        fetchPage(page, size, { q, categoryId, status })
+      } else {
+        toast.error(response.message || "Thao tác thất bại")
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Thao tác thất bại")
+    }
+  }
+
+  const handleSetFlashSale = async (product: Product, enabled: boolean) => {
+    try {
+      // If enabling, prompt for flash price
+      let flashPrice: number | undefined = undefined
+      if (enabled) {
+        const priceInput = prompt("Nhập giá flash sale (VNĐ):", product.price?.toString() || "")
+        if (!priceInput) {
+          return // User cancelled
+        }
+        flashPrice = parseFloat(priceInput)
+        if (isNaN(flashPrice) || flashPrice <= 0) {
+          toast.error("Giá không hợp lệ")
+          return
+        }
+      }
+      
+      const response = await productsApi.setFlashSale(product.id, enabled, flashPrice)
+      if (response.success) {
+        toast.success(enabled ? "Đã bật flash sale" : "Đã tắt flash sale")
+        // Refresh products
+        fetchPage(page, size, { q, categoryId, status })
+      } else {
+        toast.error(response.message || "Thao tác thất bại")
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Thao tác thất bại")
+    }
+  }
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -237,6 +281,20 @@ export function ProductsTable({
                       <Link href={`/seller/products/${product.id}`} className="font-medium hover:text-primary">
                         {product.name}
                       </Link>
+                      <div className="flex items-center gap-2 mt-1">
+                        {product.isFeatured && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Star className="h-3 w-3 mr-1" />
+                            Nổi bật
+                          </Badge>
+                        )}
+                        {product.flashSaleEnabled && (
+                          <Badge variant="destructive" className="text-xs">
+                            <Zap className="h-3 w-3 mr-1" />
+                            Flash Sale
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </TableCell>
@@ -284,6 +342,15 @@ export function ProductsTable({
                             Hiện sản phẩm
                           </>
                         )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => handleSetFeatured(product, !product.isFeatured)}>
+                        <Star className={`h-4 w-4 mr-2 ${product.isFeatured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                        {product.isFeatured ? "Bỏ đặt nổi bật" : "Đặt làm nổi bật"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleSetFlashSale(product, !product.flashSaleEnabled)}>
+                        <Zap className={`h-4 w-4 mr-2 ${product.flashSaleEnabled ? 'text-yellow-400' : ''}`} />
+                        {product.flashSaleEnabled ? "Tắt Flash Sale" : "Bật Flash Sale"}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem className="text-destructive" onClick={() => setDeleteProduct(product)}>

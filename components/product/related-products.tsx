@@ -1,26 +1,17 @@
 'use client'
 
-import { useEffect, useState } from "react"
 import { ProductCard } from "@/components/product/product-card"
-import { useFeaturedProducts } from "@/hooks/useProducts"
 import { Product } from "@/lib/api/products"
+import { getImageUrl } from "@/lib/utils/image"
 
 interface RelatedProductsProps {
   currentProductId: string
+  initialProducts?: Product[]
   categorySlug?: string
 }
 
-export function RelatedProducts({ currentProductId, categorySlug }: RelatedProductsProps) {
-  const { products, loading } = useFeaturedProducts(0, 12)
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
-
-  useEffect(() => {
-    // Filter out current product and limit to 6
-    const filtered = products
-      .filter((p) => p.id !== currentProductId)
-      .slice(0, 6)
-    setRelatedProducts(filtered)
-  }, [products, currentProductId])
+export function RelatedProducts({ currentProductId, initialProducts = [], categorySlug }: RelatedProductsProps) {
+  const relatedProducts = initialProducts
 
   // Transform API product to component product format
   const transformProduct = (product: Product) => ({
@@ -28,23 +19,12 @@ export function RelatedProducts({ currentProductId, categorySlug }: RelatedProdu
     name: product.name,
     price: product.price,
     originalPrice: product.comparePrice,
-    image: product.primaryImage || product.images?.[0] || '/placeholder.svg',
+    image: getImageUrl(product.primaryImage || product.images?.[0]),
     rating: product.rating || 0,
     sold: product.totalSold || 0,
     discount: product.comparePrice ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : undefined,
     category: product.categoryName,
   })
-
-  if (loading) {
-    return (
-      <div className="mt-6 rounded-lg bg-white p-6">
-        <h2 className="mb-6 text-xl font-semibold">SẢN PHẨM TƯƠNG TỰ</h2>
-        <div className="text-center py-4">
-          <p className="text-muted-foreground">Đang tải sản phẩm...</p>
-        </div>
-      </div>
-    )
-  }
 
   if (relatedProducts.length === 0) {
     return null

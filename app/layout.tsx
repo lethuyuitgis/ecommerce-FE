@@ -8,6 +8,7 @@ import { Toaster } from "sonner"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { RouteLoadingProvider } from "@/contexts/RouteLoadingContext"
 import { RouteLoadingIndicator } from "@/components/common/route-loading-indicator"
+import { SyncUserCookie } from "@/components/common/sync-user-cookie"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -27,11 +28,12 @@ export default function RootLayout({
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <RouteLoadingProvider>
           <AuthProvider>
+            <SyncUserCookie />
+            <RouteLoadingIndicator />
             <Suspense fallback={null}>{children}</Suspense>
             <Analytics />
             <Toaster position="top-right" richColors />
           </AuthProvider>
-          <RouteLoadingIndicator />
         </RouteLoadingProvider>
       </body>
     </html>

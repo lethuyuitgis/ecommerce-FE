@@ -1,9 +1,14 @@
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
 export default function ReturnsPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen">
+      <Header />
+      <main className="bg-muted/30">
+        <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-4xl">
         <h1 className="mb-8 text-center text-3xl font-bold">Chính Sách Trả Hàng & Hoàn Tiền</h1>
 
@@ -68,7 +73,8 @@ export default function ReturnsPage() {
             <p>• Đổi size/màu: Khách chịu phí vận chuyển</p>
           </CardContent>
         </Card>
-      </div>
+      </main>
+      <Footer />
     </div>
   )
 }

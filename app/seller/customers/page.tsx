@@ -1,95 +1,36 @@
-"use client"
+import { CustomersClient } from "./customers-client"
+import { serverSellerApi } from "@/lib/api/server"
+import { redirect } from "next/navigation"
+import { cookies, headers } from "next/headers"
 
-import { useEffect, useMemo, useState } from "react"
-import { SellerSidebar } from "@/components/seller/seller-sidebar"
-import { sellerCustomersApi, SellerCustomer, SellerCustomerDetail } from "@/lib/api/customers"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Loader2, Search, MessagesSquare, TrendingUp, Users } from "lucide-react"
-import { formatCurrency } from "@/lib/format"
-import { messagesApi } from "@/lib/api/messages"
-import { toast } from "sonner"
+export default async function SellerCustomersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ keyword?: string; page?: string }> | { keyword?: string; page?: string }
+}) {
+  const resolvedParams = searchParams instanceof Promise ? await searchParams : (searchParams || {})
+  const keyword = resolvedParams.keyword || ''
+  const page = parseInt(resolvedParams.page || '0', 10)
+  const cookieStore = await cookies()
+  const headersList = await headers()
 
-export default function SellerCustomersPage() {
-  const [search, setSearch] = useState("")
-  const [keyword, setKeyword] = useState("")
-  const [page, setPage] = useState(0)
-  const [customers, setCustomers] = useState<SellerCustomer[]>([])
-  const [totalPages, setTotalPages] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<SellerCustomerDetail | null>(null)
-  const [loadingDetail, setLoadingDetail] = useState(false)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setKeyword(search)
-      setPage(0)
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [search])
-
-  useEffect(() => {
-    loadCustomers()
-  }, [keyword, page])
-
-  const loadCustomers = async () => {
-    try {
-      setLoading(true)
-      const response = await sellerCustomersApi.list(keyword, page, 12)
-      if (response.success && response.data) {
-        setCustomers(response.data.content)
-        setTotalPages(response.data.totalPages)
-      }
-    } finally {
-      setLoading(false)
-    }
+  // Fetch customers on server with authentication
+  const customersResponse = await serverSellerApi.getCustomers(keyword, page, 12, cookieStore, headersList)
+  
+  if (!customersResponse.success) {
+    redirect('/seller')
   }
 
-  const loadDetail = async (customerId: string) => {
-    try {
-      setLoadingDetail(true)
-      const response = await sellerCustomersApi.detail(customerId)
-      if (response.success && response.data) {
-        setSelectedCustomer(response.data)
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Không thể tải thông tin khách hàng")
-    } finally {
-      setLoadingDetail(false)
-    }
-  }
+  const customers = customersResponse.data?.content || []
+  const totalPages = customersResponse.data?.totalPages || 0
 
-  const handleMessage = async (customerId: string, customerName?: string) => {
-    try {
-      const response = await messagesApi.sendMessage({
-        recipientId: customerId,
-        content: "Xin chào, mình có thể hỗ trợ gì cho bạn?",
-      })
-      if (response.success && response.data) {
-        toast.success(`Đã mở hội thoại với ${customerName || 'khách hàng'}`)
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Không thể mở hội thoại")
-    }
-  }
-
-  const stats = useMemo(() => {
-    if (customers.length === 0) {
-      return { totalOrders: 0, totalSpent: 0 }
-    }
-    return customers.reduce(
-      (acc, item) => {
-        acc.totalOrders += item.totalOrders || 0
-        acc.totalSpent += Number(item.totalSpent || 0)
-        return acc
-      },
-      { totalOrders: 0, totalSpent: 0 }
-    )
-  }, [customers])
+  return (
+    <CustomersClient 
+      initialCustomers={customers}
+      initialTotalPages={totalPages}
+      initialPage={page}
+    />
+  )
 
   return (
     <div className="flex min-h-screen bg-background">

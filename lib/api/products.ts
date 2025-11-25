@@ -15,6 +15,12 @@ export interface Product {
   totalSold?: number
   totalViews?: number
   isFeatured?: boolean
+  flashSaleEnabled?: boolean
+  flashSalePrice?: number
+  flashSaleStart?: string
+  flashSaleEnd?: string
+  flashSaleStock?: number
+  flashSaleSold?: number
   categoryId?: string
   categoryName?: string
   sellerId?: string
@@ -63,8 +69,36 @@ export const productsApi = {
     return apiClient<Product>(`/products/${id}`)
   },
 
-  getByCategory: async (slug: string, page: number = 0, size: number = 20): Promise<ApiResponse<ProductPage>> => {
-    return apiClient<ProductPage>(`/products/category/${slug}?page=${page}&size=${size}`)
+  getByCategory: async (
+    slug: string, 
+    page: number = 0, 
+    size: number = 20,
+    filters?: {
+      minPrice?: number
+      maxPrice?: number
+      minRating?: number
+      subcategory?: string
+    }
+  ): Promise<ApiResponse<ProductPage>> => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      size: size.toString(),
+    })
+    
+    if (filters?.minPrice != null) {
+      params.append('minPrice', filters.minPrice.toString())
+    }
+    if (filters?.maxPrice != null) {
+      params.append('maxPrice', filters.maxPrice.toString())
+    }
+    if (filters?.minRating != null) {
+      params.append('minRating', filters.minRating.toString())
+    }
+    if (filters?.subcategory) {
+      params.append('subcategory', filters.subcategory)
+    }
+    
+    return apiClient<ProductPage>(`/products/category/${slug}?${params.toString()}`)
   },
 
   search: async (keyword: string, page: number = 0, size: number = 20): Promise<ApiResponse<ProductPage>> => {
@@ -101,4 +135,37 @@ export const productsApi = {
       method: 'DELETE',
     })
   },
+
+  getStats: async (id: string, days: number = 7): Promise<ApiResponse<ProductStats>> => {
+    return apiClient<ProductStats>(`/products/${id}/stats?days=${days}`)
+  },
+
+  setFeatured: async (id: string, featured: boolean): Promise<ApiResponse<Product>> => {
+    return apiClient<Product>(`/seller/products/${id}/featured`, {
+      method: 'POST',
+      body: JSON.stringify({ featured }),
+    })
+  },
+
+  setFlashSale: async (id: string, enabled: boolean, flashPrice?: number): Promise<ApiResponse<Product>> => {
+    return apiClient<Product>(`/seller/products/${id}/flash-sale`, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        enabled,
+        flashPrice: flashPrice || undefined,
+      }),
+    })
+  },
+}
+
+export interface ProductStats {
+  salesData: Array<{
+    date: string
+    sales: number
+    revenue: number
+  }>
+  viewsData: Array<{
+    date: string
+    views: number
+  }>
 }

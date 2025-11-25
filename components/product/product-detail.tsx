@@ -12,6 +12,7 @@ import { toast } from "sonner"
 import type { Product } from "@/lib/products"
 import { ChatWithShopButton } from "./chat-with-shop-button"
 import { useRouteLoading } from "@/contexts/RouteLoadingContext"
+import { getImageUrl } from "@/lib/utils/image"
 
 interface ProductDetailProps {
   product: Product
@@ -22,29 +23,22 @@ interface ProductDetailProps {
     colors?: string[]
   }
   onProductUpdate?: () => void
+  initialInWishlist?: boolean
 }
 
-export function ProductDetail({ product, sellerId, sellerName, variants, onProductUpdate }: ProductDetailProps) {
+export function ProductDetail({ product, sellerId, sellerName, variants, onProductUpdate, initialInWishlist = false }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [selectedSize, setSelectedSize] = useState<string>("")
   const [selectedColor, setSelectedColor] = useState<string>("")
   const { addToCart } = useCart()
   const { isAuthenticated } = useAuth()
-  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist()
+  const { addToWishlist, removeFromWishlist } = useWishlist()
   const router = useRouter()
   const { startNavigation } = useRouteLoading()
-  const [inWishlist, setInWishlist] = useState(false)
+  const [inWishlist, setInWishlist] = useState(initialInWishlist)
 
-  useEffect(() => {
-    const checkWishlist = async () => {
-      if (isAuthenticated) {
-        const result = await isInWishlist(product.id)
-        setInWishlist(result)
-      }
-    }
-    checkWishlist()
-  }, [product.id, isAuthenticated, isInWishlist])
+  // Initial state is set from server-side fetch, only update when user toggles
 
   // Initialize selected size and color from variants
   useEffect(() => {
@@ -145,7 +139,7 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
         <div>
           <div className="relative mb-4 aspect-square overflow-hidden rounded-lg bg-muted">
             <img
-              src={images[selectedImage] || "/placeholder.svg"}
+              src={getImageUrl(images[selectedImage])}
               alt={product.name}
               className="h-full w-full object-cover"
             />
@@ -164,7 +158,7 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
                   }`}
               >
                 <img
-                  src={image || "/placeholder.svg"}
+                  src={getImageUrl(image)}
                   alt={`${product.name} ${index + 1}`}
                   className="h-full w-full object-cover"
                 />
@@ -186,31 +180,42 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
           {/* Rating */}
           <div className="mb-4 flex items-center gap-4 border-b pb-4">
             <div className="flex items-center gap-1">
-              <span className="text-2xl font-semibold text-primary">{product.rating}</span>
+              <span className="text-2xl font-semibold text-primary">{product.rating?.toFixed(1) || '0.0'}</span>
               <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
             </div>
             <div className="h-6 w-px bg-border" />
             <div>
-              <span className="text-lg font-semibold">{product.sold}</span>
+              <span className="text-lg font-semibold">{product.totalReviews || 0}</span>
               <span className="ml-1 text-sm text-muted-foreground">Đánh Giá</span>
             </div>
             <div className="h-6 w-px bg-border" />
             <div>
-              <span className="text-lg font-semibold">{product.sold}</span>
+              <span className="text-lg font-semibold">{product.sold || 0}</span>
               <span className="ml-1 text-sm text-muted-foreground">Đã Bán</span>
             </div>
           </div>
 
           {/* Price */}
           <div className="mb-6 rounded-lg bg-muted/50 p-4">
-            <div className="flex items-baseline gap-3">
-              {product.originalPrice && (
+            <div className="flex items-baseline gap-3 flex-wrap">
+              {/* Hiển thị giá mới (giá đã giảm) */}
+              <span className="text-3xl font-bold text-primary">
+                ₫{product.price.toLocaleString("vi-VN")}
+              </span>
+              {/* Hiển thị giá cũ (comparePrice hoặc originalPrice) nếu có */}
+              {(product.originalPrice || product.comparePrice) && (
                 <span className="text-lg text-muted-foreground line-through">
-                  ₫{product.originalPrice.toLocaleString("vi-VN")}
+                  ₫{(product.originalPrice || product.comparePrice || 0).toLocaleString("vi-VN")}
                 </span>
               )}
-              <span className="text-3xl font-bold text-primary">₫{product.price.toLocaleString("vi-VN")}</span>
-              {product.discount && (
+              {/* Hiển thị % giảm giá nếu có */}
+              {((product.originalPrice || product.comparePrice) && product.price) && (
+                <Badge className="bg-red-500 text-white text-base px-3 py-1">
+                  -{Math.round(((product.originalPrice || product.comparePrice || product.price) - product.price) / (product.originalPrice || product.comparePrice || product.price) * 100)}%
+                </Badge>
+              )}
+              {/* Fallback: hiển thị discount nếu có nhưng không có originalPrice/comparePrice */}
+              {product.discount && !product.originalPrice && !product.comparePrice && (
                 <Badge className="bg-secondary text-secondary-foreground">-{product.discount}%</Badge>
               )}
             </div>

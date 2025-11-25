@@ -1,4 +1,5 @@
 import { apiClient, ApiResponse } from './client'
+import { setCookie, removeCookie } from '@/lib/utils/cookies'
 
 export interface LoginRequest {
   email: string
@@ -19,6 +20,7 @@ export interface AuthResponse {
   email: string
   fullName: string
   userType: string
+  avatarUrl?: string
 }
 
 export const authApi = {
@@ -32,6 +34,14 @@ export const authApi = {
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('userId', response.data.userId)
       localStorage.setItem('refreshToken', response.data.refreshToken)
+      if (response.data.avatarUrl) {
+        localStorage.setItem('avatarUrl', response.data.avatarUrl)
+      } else {
+        localStorage.removeItem('avatarUrl')
+      }
+      // Also save to cookies for server-side access
+      setCookie('userId', response.data.userId, 30)
+      setCookie('token', response.data.token, 30)
     }
     
     return response
@@ -47,15 +57,30 @@ export const authApi = {
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('userId', response.data.userId)
       localStorage.setItem('refreshToken', response.data.refreshToken)
+      if (response.data.avatarUrl) {
+        localStorage.setItem('avatarUrl', response.data.avatarUrl)
+      } else {
+        localStorage.removeItem('avatarUrl')
+      }
+      // Also save to cookies for server-side access
+      setCookie('userId', response.data.userId, 30)
+      setCookie('token', response.data.token, 30)
     }
     
     return response
   },
 
   logout: () => {
+    void apiClient('/auth/logout', { method: 'POST' }).catch(() => {
+      // ignore network errors during logout
+    })
     localStorage.removeItem('token')
     localStorage.removeItem('userId')
     localStorage.removeItem('refreshToken')
+    localStorage.removeItem('avatarUrl')
+    // Also remove from cookies
+    removeCookie('userId')
+    removeCookie('token')
   },
 
   getToken: (): string | null => {
@@ -83,6 +108,14 @@ export const authApi = {
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('userId', response.data.userId)
       localStorage.setItem('refreshToken', response.data.refreshToken)
+      if (response.data.avatarUrl) {
+        localStorage.setItem('avatarUrl', response.data.avatarUrl)
+      } else {
+        localStorage.removeItem('avatarUrl')
+      }
+      // Also save to cookies for server-side access
+      setCookie('userId', response.data.userId, 30)
+      setCookie('token', response.data.token, 30)
     }
     
     return response
@@ -98,6 +131,14 @@ export const authApi = {
       localStorage.setItem('token', response.data.token)
       localStorage.setItem('userId', response.data.userId)
       localStorage.setItem('refreshToken', response.data.refreshToken)
+      if (response.data.avatarUrl) {
+        localStorage.setItem('avatarUrl', response.data.avatarUrl)
+      } else {
+        localStorage.removeItem('avatarUrl')
+      }
+      // Also save to cookies for server-side access
+      setCookie('userId', response.data.userId, 30)
+      setCookie('token', response.data.token, 30)
     }
     
     return response

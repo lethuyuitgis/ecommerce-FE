@@ -7,7 +7,7 @@ export const wishlistApi = {
   },
 
   addToWishlist: async (productId: string): Promise<ApiResponse<void>> => {
-    return apiClient<void>('/wishlist/add', {
+    return apiClient<void>('/wishlist', {
       method: 'POST',
       body: JSON.stringify({ productId }),
     })
@@ -20,9 +20,11 @@ export const wishlistApi = {
   },
 
   checkWishlist: async (productId: string): Promise<ApiResponse<boolean>> => {
-    return apiClient<boolean>(`/wishlist/${productId}/check`)
+    return apiClient<boolean>(`/wishlist/check/${productId}`)
   },
 }
+
+
 
 
 

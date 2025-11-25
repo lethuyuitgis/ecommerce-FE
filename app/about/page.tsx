@@ -1,11 +1,16 @@
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Target, Award, Heart } from "lucide-react"
 
 export default function AboutPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mx-auto max-w-4xl">
-        <h1 className="mb-8 text-center text-3xl font-bold">Về ShopCuaThuy</h1>
+    <div className="min-h-screen">
+      <Header />
+      <main className="bg-muted/30">
+        <div className="container mx-auto px-4 py-8">
+          <div className="mx-auto max-w-4xl">
+            <h1 className="mb-8 text-center text-3xl font-bold">Về ShopCuaThuy</h1>
 
         <div className="mb-12 space-y-4 text-center">
           <p className="text-lg text-muted-foreground">
@@ -81,7 +86,8 @@ export default function AboutPage() {
             </div>
           </div>
         </div>
-      </div>
+      </main>
+      <Footer />
     </div>
   )
 }

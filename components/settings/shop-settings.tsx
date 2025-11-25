@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,6 +12,7 @@ import Image from "next/image"
 import { sellerApi, Seller } from "@/lib/api/seller"
 import { apiClientWithFile } from "@/lib/api/client"
 import { toast } from "sonner"
+import { useAuth } from "@/contexts/AuthContext"
 import { BusinessHoursForm } from "./business-hours-form"
 
 export function ShopSettings() {
@@ -26,11 +28,16 @@ export function ShopSettings() {
     district: "",
   })
 
+  const { isAuthenticated } = useAuth()
+
   useEffect(() => {
-    fetchSellerProfile()
-  }, [])
+    if (isAuthenticated) {
+      fetchSellerProfile()
+    }
+  }, [isAuthenticated])
 
   const fetchSellerProfile = async () => {
+    if (!isAuthenticated) return
     try {
       setLoading(true)
       const response = await sellerApi.getProfile()
@@ -45,7 +52,12 @@ export function ShopSettings() {
           district: response.data.district || "",
         })
       }
-    } catch (error) {
+    } catch (error: any) {
+      // If 401, token expired - will be handled by apiClient
+      if (error?.status === 401) {
+        console.log('Token expired, stopping seller profile fetch')
+        return
+      }
       console.error('Failed to fetch seller profile:', error)
       toast.error("Tải thông tin cửa hàng thất bại")
     } finally {

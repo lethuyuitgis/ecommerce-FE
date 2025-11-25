@@ -2,12 +2,15 @@ import { apiClient, ApiResponse } from './client'
 
 export interface Conversation {
   id: string
-  customerId: string
+  customerId?: string
   customerName?: string
   customerEmail?: string
+  sellerId?: string
+  sellerName?: string
   lastMessage?: string
   lastMessageAt?: string
   sellerUnreadCount?: number
+  customerUnreadCount?: number
 }
 
 export interface Message {

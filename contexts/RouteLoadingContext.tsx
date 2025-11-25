@@ -38,54 +38,67 @@ export function RouteLoadingProvider({ children }: { children: React.ReactNode }
 
       clearTimeoutRef()
       // Fallback guard so the indicator never gets stuck indefinitely
+      // Reduced from 10s to 3s for faster recovery
       timeoutRef.current = setTimeout(() => {
         setIsNavigating(false)
-      }, 10000)
+      }, 3000)
     },
     [clearTimeoutRef]
   )
 
   // Complete navigation once pathname updates
   useEffect(() => {
-    const pendingPath = pendingPathRef.current
     if (!isNavigating) {
       previousPathRef.current = pathname
       return
     }
 
-    if (!pendingPath || pendingPath === pathname || pathname !== previousPathRef.current) {
+    const pendingPath = pendingPathRef.current
+    // Finish navigation immediately when pathname changes (faster detection)
+    if (pathname !== previousPathRef.current) {
       previousPathRef.current = pathname
-      finishNavigation()
+      // Small delay to ensure smooth transition
+      const finishTimeout = setTimeout(() => {
+        finishNavigation()
+      }, 100)
+      return () => clearTimeout(finishTimeout)
     }
   }, [pathname, isNavigating, finishNavigation])
 
-  // Auto-start loading for internal anchor clicks
+  // Auto-start loading for internal anchor clicks (optimized with passive listener)
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
+      // Early returns for better performance
       if (event.defaultPrevented) return
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+      
       const target = (event.target as HTMLElement)?.closest("a")
       if (!target) return
 
       const href = target.getAttribute("href")
-      if (!href) return
-      if (href.startsWith("#")) return
+      if (!href || href.startsWith("#")) return
       if (target.getAttribute("target") === "_blank") return
 
       // Only handle internal navigation
       const isAbsolute = /^https?:\/\//i.test(href)
       if (isAbsolute) {
-        const url = new URL(href, window.location.origin)
-        if (url.origin !== window.location.origin) return
-        startNavigation(`${url.pathname}${url.search}${url.hash}`)
+        try {
+          const url = new URL(href, window.location.origin)
+          if (url.origin !== window.location.origin) return
+          startNavigation(`${url.pathname}${url.search}${url.hash}`)
+        } catch {
+          // Invalid URL, ignore
+          return
+        }
       } else {
         startNavigation(href)
       }
     }
 
-    document.addEventListener("click", handleClick)
+    // Use capture phase for faster detection
+    document.addEventListener("click", handleClick, { capture: true, passive: true })
     return () => {
-      document.removeEventListener("click", handleClick)
+      document.removeEventListener("click", handleClick, { capture: true })
     }
   }, [startNavigation])
 

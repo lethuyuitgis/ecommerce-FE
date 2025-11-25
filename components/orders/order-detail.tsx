@@ -10,6 +10,7 @@ import { ordersApi, Order } from "@/lib/api/orders"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { getImageUrl } from "@/lib/utils/image"
 
 interface OrderDetailProps {
   orderId: string
@@ -190,7 +191,7 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
                 <div key={item.id} className="flex gap-4 border-b pb-4 last:border-0">
                   <div className="h-24 w-24 shrink-0 overflow-hidden rounded border">
                     <img
-                      src={item.productImage || "/placeholder.svg"}
+                      src={getImageUrl(item.productImage)}
                       alt={item.productName}
                       className="h-full w-full object-cover"
                     />

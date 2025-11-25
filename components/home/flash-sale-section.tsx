@@ -38,17 +38,30 @@ export function FlashSaleSection() {
   }, [])
 
   // Transform API product to component product format
-  const transformProduct = (product: Product) => ({
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    originalPrice: product.comparePrice,
-    image: product.primaryImage || product.images?.[0] || '/placeholder.svg',
-    rating: product.rating || 0,
-    sold: product.totalSold || 0,
-    discount: product.comparePrice ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : undefined,
-    category: product.categoryName,
-  })
+  const transformProduct = (product: Product) => {
+    // Ưu tiên flashSalePrice nếu có, nếu không thì dùng price
+    const salePrice = product.flashSaleEnabled && product.flashSalePrice 
+      ? product.flashSalePrice 
+      : product.price
+    
+    // Giá cũ: nếu có flashSalePrice thì dùng price, nếu không thì dùng comparePrice
+    const originalPrice = product.flashSaleEnabled && product.flashSalePrice
+      ? product.price
+      : product.comparePrice
+    
+    return {
+      id: product.id,
+      name: product.name,
+      price: salePrice,
+      originalPrice: originalPrice,
+      comparePrice: product.comparePrice,
+      image: product.primaryImage || product.images?.[0] || '/placeholder.svg',
+      rating: product.rating || 0,
+      sold: product.totalSold || 0,
+      discount: originalPrice ? Math.round(((originalPrice - salePrice) / originalPrice) * 100) : undefined,
+      category: product.categoryName,
+    }
+  }
 
   return (
     <section className="border-b bg-white">

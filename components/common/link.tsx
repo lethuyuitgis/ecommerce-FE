@@ -29,13 +29,13 @@ function resolveHref(href: ComponentProps<typeof Link>["href"]): string | null {
 }
 
 /**
- * Optimized Link component with prefetch disabled by default
- * Use this instead of Next.js Link for better performance
+ * Optimized Link component with prefetch enabled by default for faster navigation
+ * Set prefetch={false} to disable for specific links
  */
 export function OptimizedLink({
   children,
   href,
-  prefetch = false,
+  prefetch = true, // Enable prefetch by default for faster navigation
   onClick,
   ...props
 }: ComponentProps<typeof Link> & { prefetch?: boolean }) {

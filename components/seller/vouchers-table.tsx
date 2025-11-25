@@ -70,10 +70,8 @@ export function VouchersTable() {
   const [deleteVoucher, setDeleteVoucher] = useState<AdminVoucher | null>(null)
 
   const load = async () => {
-    const res = await adminApi.listVouchers()
-    if (res.success && res.data) {
-      setItems(res.data)
-    }
+    const data = await adminApi.listVouchers()
+    setItems(data)
   }
 
   useEffect(() => {
@@ -164,13 +162,9 @@ export function VouchersTable() {
                 className="text-destructive"
                 onClick={async () => {
                   if (!deleteVoucher) return
-                  const res = await adminApi.deleteVoucher(deleteVoucher.id)
-                  if (res.success) {
-                    toast.success("Đã xóa voucher")
-                    setItems((prev) => prev.filter((v) => v.id !== deleteVoucher.id))
-                  } else {
-                    toast.error(res.message || "Xóa thất bại")
-                  }
+                  await adminApi.deleteVoucher(deleteVoucher.id)
+                  toast.success("Đã xóa voucher")
+                  setItems((prev) => prev.filter((v) => v.id !== deleteVoucher.id))
                   setDeleteVoucher(null)
                 }}
               >

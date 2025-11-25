@@ -1,9 +1,14 @@
+import { Header } from "@/components/common/header"
+import { Footer } from "@/components/common/footer"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Truck, Package, Clock, MapPin } from "lucide-react"
 
 export default function ShippingInfoPage() {
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen">
+      <Header />
+      <main className="bg-muted/30">
+        <div className="container mx-auto px-4 py-8">
       <div className="mx-auto max-w-4xl">
         <h1 className="mb-8 text-center text-3xl font-bold">Thông Tin Vận Chuyển</h1>
 
@@ -72,7 +77,8 @@ export default function ShippingInfoPage() {
             <p>• Giữ lại hóa đơn và bao bì để đổi trả nếu cần</p>
           </CardContent>
         </Card>
-      </div>
+      </main>
+      <Footer />
     </div>
   )
 }

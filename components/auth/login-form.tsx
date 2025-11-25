@@ -147,13 +147,10 @@ export function LoginForm() {
         },
       })
 
-      // Render button in the hidden container and trigger click
       const buttonContainer = document.getElementById('google-signin-button')
       if (buttonContainer) {
-        // Clear existing content
         buttonContainer.innerHTML = ''
 
-        // Render button
         window.google.accounts.id.renderButton(buttonContainer, {
           theme: 'outline',
           size: 'large',
@@ -162,26 +159,16 @@ export function LoginForm() {
           text: 'signin_with',
         })
 
-        // Wait a bit then click the button programmatically
         setTimeout(() => {
           const button = buttonContainer.querySelector('div[role="button"]') as HTMLElement
           if (button) {
-            console.log('Clicking Google button programmatically')
             button.click()
           } else {
-            console.log('Google button not found, trying alternative method')
-            // Alternative: trigger click on iframe
-            const iframe = buttonContainer.querySelector('iframe')
-            if (iframe) {
-              iframe.click()
-            } else {
-              setLoading(false)
-            }
+            window.google.accounts.id.prompt()
           }
-        }, 500)
+        }, 200)
       } else {
-        console.log('Button container not found')
-        setLoading(false)
+        window.google.accounts.id.prompt()
       }
     } catch (error: any) {
       console.error('Google login error:', error)
@@ -243,7 +230,7 @@ export function LoginForm() {
             }
             setLoading(false)
           }
-        }, { scope: 'email,public_profile' })
+        }, { scope: 'public_profile', return_scopes: true })
       }, true) // Force roundtrip to refresh status
     } catch (error: any) {
       console.error('Facebook login error:', error)
@@ -357,7 +344,7 @@ export function LoginForm() {
         </Button>
       </div>
 
-      <div id="google-signin-button" className="mt-3 w-full "></div>
+      <div id="google-signin-button" className="sr-only" aria-hidden="true" />
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Bạn chưa có tài khoản?{" "}

@@ -8,21 +8,25 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { ReviewForm } from "@/components/review-form"
 import { reviewsApi, ProductReview } from "@/lib/api/reviews"
+import { ordersApi, PurchaseStatus } from "@/lib/api/orders"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
 
 interface ProductReviewsProps {
   productId: string
+  initialReviews?: ProductReview[]
+  initialTotalPages?: number
+  initialPurchaseStatus?: { hasPurchased: boolean; orderItemId?: string; orderId?: string; orderNumber?: string }
 }
 
-export function ProductReviews({ productId }: ProductReviewsProps) {
+export function ProductReviews({ productId, initialReviews = [], initialTotalPages = 0, initialPurchaseStatus }: ProductReviewsProps) {
   const { isAuthenticated } = useAuth()
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [activeFilter, setActiveFilter] = useState("all")
-  const [reviews, setReviews] = useState<ProductReview[]>([])
-  const [loading, setLoading] = useState(true)
+  const [reviews, setReviews] = useState<ProductReview[]>(initialReviews)
+  const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
+  const [totalPages, setTotalPages] = useState(initialTotalPages)
   const [averageRating, setAverageRating] = useState(0)
   const [ratingDistribution, setRatingDistribution] = useState<Record<number, number>>({
     5: 0,
@@ -31,10 +35,57 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
     2: 0,
     1: 0,
   })
+  const [purchaseStatus, setPurchaseStatus] = useState<PurchaseStatus | null>(
+    initialPurchaseStatus ? {
+      hasPurchased: initialPurchaseStatus.hasPurchased,
+      orderItemId: initialPurchaseStatus.orderItemId,
+      orderId: initialPurchaseStatus.orderId,
+      orderNumber: initialPurchaseStatus.orderNumber,
+    } : null
+  )
 
+  // Calculate initial average rating and distribution from initial reviews
   useEffect(() => {
-    fetchReviews()
-  }, [productId, page])
+    if (initialReviews.length > 0) {
+      const avg = initialReviews.reduce((sum, r) => sum + r.rating, 0) / initialReviews.length
+      setAverageRating(avg)
+
+      const dist: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 }
+      initialReviews.forEach(r => {
+        dist[r.rating] = (dist[r.rating] || 0) + 1
+      })
+      setRatingDistribution(dist)
+    }
+  }, [initialReviews])
+
+  // Only check purchase status if not provided from server
+  useEffect(() => {
+    if (isAuthenticated && productId && !initialPurchaseStatus) {
+      checkPurchaseStatus()
+    }
+  }, [isAuthenticated, productId, initialPurchaseStatus])
+
+  // Only fetch when page changes (not on initial load)
+  useEffect(() => {
+    if (page > 0) {
+      fetchReviews()
+    }
+  }, [page])
+
+  const checkPurchaseStatus = async () => {
+    try {
+      const response = await ordersApi.checkPurchase(productId)
+      if (response.success && response.data) {
+        setPurchaseStatus(response.data)
+      } else {
+        setPurchaseStatus({ hasPurchased: false })
+      }
+    } catch (error) {
+      console.error('Failed to check purchase status:', error)
+      // Set default: not purchased
+      setPurchaseStatus({ hasPurchased: false })
+    }
+  }
 
   const fetchReviews = async () => {
     try {
@@ -78,18 +129,29 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
     <div className="mt-6 rounded-lg bg-white p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold">ĐÁNH GIÁ SẢN PHẨM</h2>
-        {isAuthenticated && (
-          <Button onClick={() => setShowReviewForm(true)} className="gap-2">
-            <Star className="w-4 h-4" />
-            Viết đánh giá
-          </Button>
+        {isAuthenticated ? (
+          purchaseStatus?.hasPurchased ? (
+            <Button onClick={() => setShowReviewForm(true)} className="gap-2">
+              <Star className="w-4 h-4" />
+              Viết đánh giá
+            </Button>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              Bạn cần mua sản phẩm để đánh giá
+            </div>
+          )
+        ) : (
+          <div className="text-sm text-muted-foreground">
+            Đăng nhập để viết đánh giá
+          </div>
         )}
       </div>
 
       {/* Review Form Modal */}
-      {showReviewForm && (
+      {showReviewForm && purchaseStatus?.hasPurchased && (
         <ReviewForm
           productId={productId}
+          orderItemId={purchaseStatus.orderItemId}
           onClose={() => setShowReviewForm(false)}
           onSuccess={handleReviewSuccess}
         />

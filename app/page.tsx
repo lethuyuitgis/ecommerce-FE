@@ -1,10 +1,8 @@
-'use client'
-
 import { lazy, Suspense } from "react"
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { ProductCard } from "@/components/product/product-card"
-import { useFeaturedProducts } from "@/hooks/useProducts"
+import { serverProductsApi } from "@/lib/api/server"
 import { Product } from "@/lib/api/products"
 
 // Lazy load heavy components
@@ -12,8 +10,21 @@ const CategorySection = lazy(() => import("@/components/home/category-section").
 const FlashSaleSection = lazy(() => import("@/components/home/flash-sale-section").then(m => ({ default: m.FlashSaleSection })))
 const BannerCarousel = lazy(() => import("@/components/home/banner-carousel").then(m => ({ default: m.BannerCarousel })))
 
-export default function HomePage() {
-  const { products, loading } = useFeaturedProducts(0, 24)
+export default async function HomePage() {
+  // Fetch featured products on server
+  let products: Product[] = []
+  try {
+    const featuredResponse = await serverProductsApi.getFeatured()
+    // Backend returns ProductPage with content array
+    if (featuredResponse.success && featuredResponse.data) {
+      products = Array.isArray(featuredResponse.data) 
+        ? featuredResponse.data 
+        : (featuredResponse.data.content || [])
+    }
+  } catch (error) {
+    console.error('Error fetching featured products:', error)
+    // Continue with empty array if fetch fails
+  }
 
   // Transform API product to component product format
   const transformProduct = (product: Product) => ({
@@ -52,8 +63,8 @@ export default function HomePage() {
           <div className="mb-6 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-foreground">GỢI Ý HÔM NAY</h2>
           </div>
-          {loading ? (
-            <div className="text-center py-8">Đang tải sản phẩm...</div>
+          {products.length === 0 ? (
+            <div className="text-center py-8">Không có sản phẩm nổi bật</div>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">

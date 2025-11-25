@@ -24,6 +24,13 @@ export interface CreateReviewRequest {
   videos?: string[]
 }
 
+export interface PurchaseStatus {
+  hasPurchased: boolean
+  orderItemId?: string
+  orderId?: string
+  orderNumber?: string
+}
+
 export interface ReviewPage {
   content: ProductReview[]
   totalElements: number
@@ -50,8 +57,7 @@ export const reviewsApi = {
     images?: File[],
     videos?: File[]
   ): Promise<ApiResponse<ProductReview>> => {
-    // Call backend directly to avoid Next.js proxy issues with multipart
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
+    const { apiClientFormData } = await import('./client')
     
     const formData = new FormData()
     formData.append('rating', reviewData.rating.toString())
@@ -75,39 +81,7 @@ export const reviewsApi = {
       })
     }
 
-    const headers: HeadersInit = {}
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token')
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      const userId = localStorage.getItem('userId')
-      if (userId) {
-        headers['X-User-Id'] = userId
-      }
-      // Don't set Content-Type - browser will set it with boundary automatically
-    }
-
-    const response = await fetch(`${backendUrl}/reviews/product/${productId}`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      let errorMessage = 'Failed to create review'
-      try {
-        const error = JSON.parse(errorText)
-        errorMessage = error.message || errorMessage
-      } catch {
-        errorMessage = errorText || errorMessage
-      }
-      throw new Error(errorMessage)
-    }
-
-    const data = await response.json()
-    return { success: true, data, message: 'Review created successfully' }
+    return apiClientFormData<ProductReview>(`/reviews/product/${productId}`, formData)
   },
 }
 

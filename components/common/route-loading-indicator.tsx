@@ -10,13 +10,14 @@ export function RouteLoadingIndicator() {
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>
     if (isNavigating) {
-      timeout = setTimeout(() => setVisible(true), 150)
+      // Reduced delay from 150ms to 50ms for faster feedback
+      timeout = setTimeout(() => setVisible(true), 50)
     } else {
       setVisible(false)
     }
 
     return () => {
-      clearTimeout(timeout)
+      if (timeout) clearTimeout(timeout)
     }
   }, [isNavigating])
 

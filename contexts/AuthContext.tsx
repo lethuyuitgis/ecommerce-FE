@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const router = useRouter()
 
     useEffect(() => {
+        let isMounted = true
         const token = authApi.getToken()
         const userId = authApi.getUserId()
 
@@ -31,8 +32,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Load fresh profile from backend
             userApi.getProfile()
                 .then((resp) => {
+                    if (!isMounted) return
                     if (resp.success && resp.data) {
                         const profile = resp.data
+                        if (profile.avatarUrl) {
+                            localStorage.setItem('avatarUrl', profile.avatarUrl)
+                        } else {
+                            localStorage.removeItem('avatarUrl')
+                        }
                         const userData: AuthResponse = {
                             token,
                             refreshToken: localStorage.getItem('refreshToken') || '',
@@ -40,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             email: profile.email,
                             fullName: profile.fullName,
                             userType: profile.userType,
+                            avatarUrl: profile.avatarUrl || undefined,
                         }
                         // persist commonly used fields
                         localStorage.setItem('email', profile.email || '')
@@ -47,7 +55,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         localStorage.setItem('userType', profile.userType || 'CUSTOMER')
                         setUser(userData)
                     } else {
-                        // fallback to local storage data
+                        // Token expired or invalid - clear auth and redirect to login
+                        authApi.logout()
+                        setUser(null)
+                        const currentPath = window.location.pathname + window.location.search
+                        if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
+                            router.push(`/login?redirect=${encodeURIComponent(currentPath)}`)
+                        }
+                    }
+                    if (isMounted) setIsLoading(false)
+                })
+                .catch((error) => {
+                    if (!isMounted) return
+                    // If 401, token expired - clear auth and redirect
+                    if (error?.status === 401 || error?.message?.includes('401')) {
+                        authApi.logout()
+                        setUser(null)
+                        const currentPath = window.location.pathname + window.location.search
+                        if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
+                            router.push(`/login?redirect=${encodeURIComponent(currentPath)}`)
+                        }
+                    } else {
+                        // Other errors - fallback to local storage data
                         const fallback: AuthResponse = {
                             token,
                             refreshToken: localStorage.getItem('refreshToken') || '',
@@ -55,31 +84,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             email: localStorage.getItem('email') || '',
                             fullName: localStorage.getItem('fullName') || '',
                             userType: localStorage.getItem('userType') || 'CUSTOMER',
+                            avatarUrl: localStorage.getItem('avatarUrl') || undefined,
                         }
                         setUser(fallback)
                     }
+                    setIsLoading(false)
                 })
-                .catch(() => {
-                    // fallback to local storage data on error
-                    const fallback: AuthResponse = {
-                        token,
-                        refreshToken: localStorage.getItem('refreshToken') || '',
-                        userId,
-                        email: localStorage.getItem('email') || '',
-                        fullName: localStorage.getItem('fullName') || '',
-                        userType: localStorage.getItem('userType') || 'CUSTOMER',
-                    }
-                    setUser(fallback)
-                })
+        } else {
+            setIsLoading(false)
         }
-        setIsLoading(false)
-    }, [])
+
+        return () => {
+            isMounted = false
+        }
+    }, [router])
 
     const login = async (email: string, password: string) => {
         try {
             const response = await authApi.login({ email, password })
             if (response.success && response.data) {
-                // fetch profile to enrich user info
+                // Save user data immediately
+                localStorage.setItem('email', response.data.email)
+                localStorage.setItem('fullName', response.data.fullName)
+                localStorage.setItem('userType', response.data.userType)
+                if (response.data.avatarUrl) {
+                    localStorage.setItem('avatarUrl', response.data.avatarUrl)
+                } else {
+                    localStorage.removeItem('avatarUrl')
+                }
+                setUser(response.data)
+                
+                // Redirect immediately without waiting for profile fetch
                 const redirectByRole = (role?: string) => {
                     switch ((role || '').toUpperCase()) {
                         case 'ADMIN':
@@ -98,36 +133,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             break
                     }
                 }
-                try {
-                    const profileResp = await userApi.getProfile()
-                    if (profileResp.success && profileResp.data) {
-                        const profile = profileResp.data
-                        localStorage.setItem('email', profile.email || '')
-                        localStorage.setItem('fullName', profile.fullName || '')
-                        localStorage.setItem('userType', profile.userType || 'CUSTOMER')
-                        setUser({
-                            token: response.data.token,
-                            refreshToken: response.data.refreshToken,
-                            userId: response.data.userId,
-                            email: profile.email,
-                            fullName: profile.fullName,
-                            userType: profile.userType,
-                        })
-                        redirectByRole(profile.userType)
-                    } else {
-                        localStorage.setItem('email', response.data.email)
-                        localStorage.setItem('fullName', response.data.fullName)
-                        localStorage.setItem('userType', response.data.userType)
-                        setUser(response.data)
-                        redirectByRole(response.data.userType)
-                    }
-                } catch {
-                    localStorage.setItem('email', response.data.email)
-                    localStorage.setItem('fullName', response.data.fullName)
-                    localStorage.setItem('userType', response.data.userType)
-                    setUser(response.data)
-                    redirectByRole(response.data.userType)
-                }
+                redirectByRole(response.data.userType)
+                
+                // Fetch profile in background (optional, for more complete data)
+                userApi.getProfile()
+                    .then((profileResp) => {
+                        if (profileResp.success && profileResp.data) {
+                            const profile = profileResp.data
+                            localStorage.setItem('email', profile.email || response.data.email)
+                            localStorage.setItem('fullName', profile.fullName || response.data.fullName)
+                            localStorage.setItem('userType', profile.userType || response.data.userType)
+                            if (profile.avatarUrl) {
+                                localStorage.setItem('avatarUrl', profile.avatarUrl)
+                            } else if (response.data.avatarUrl) {
+                                localStorage.setItem('avatarUrl', response.data.avatarUrl)
+                            } else {
+                                localStorage.removeItem('avatarUrl')
+                            }
+                            setUser({
+                                token: response.data.token,
+                                refreshToken: response.data.refreshToken,
+                                userId: response.data.userId,
+                                email: profile.email || response.data.email,
+                                fullName: profile.fullName || response.data.fullName,
+                                userType: profile.userType || response.data.userType,
+                                avatarUrl: profile.avatarUrl || response.data.avatarUrl,
+                            })
+                        }
+                    })
+                    .catch(() => {
+                        // Ignore errors, we already have data from login response
+                    })
             }
         } catch (error) {
             throw error
@@ -138,6 +174,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const response = await authApi.register({ email, password, fullName, phone })
             if (response.success && response.data) {
+                // Save user data immediately
+                localStorage.setItem('email', response.data.email)
+                localStorage.setItem('fullName', response.data.fullName)
+                localStorage.setItem('userType', response.data.userType)
+                if (response.data.avatarUrl) {
+                    localStorage.setItem('avatarUrl', response.data.avatarUrl)
+                } else {
+                    localStorage.removeItem('avatarUrl')
+                }
+                setUser(response.data)
+                
+                // Redirect immediately without waiting for profile fetch
                 const redirectByRole = (role?: string) => {
                     switch ((role || '').toUpperCase()) {
                         case 'ADMIN':
@@ -156,36 +204,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             break
                     }
                 }
-                try {
-                    const profileResp = await userApi.getProfile()
-                    if (profileResp.success && profileResp.data) {
-                        const profile = profileResp.data
-                        localStorage.setItem('email', profile.email || '')
-                        localStorage.setItem('fullName', profile.fullName || '')
-                        localStorage.setItem('userType', profile.userType || 'CUSTOMER')
-                        setUser({
-                            token: response.data.token,
-                            refreshToken: response.data.refreshToken,
-                            userId: response.data.userId,
-                            email: profile.email,
-                            fullName: profile.fullName,
-                            userType: profile.userType,
-                        })
-                        redirectByRole(profile.userType)
-                    } else {
-                        localStorage.setItem('email', response.data.email)
-                        localStorage.setItem('fullName', response.data.fullName)
-                        localStorage.setItem('userType', response.data.userType)
-                        setUser(response.data)
-                        redirectByRole(response.data.userType)
-                    }
-                } catch {
-                    localStorage.setItem('email', response.data.email)
-                    localStorage.setItem('fullName', response.data.fullName)
-                    localStorage.setItem('userType', response.data.userType)
-                    setUser(response.data)
-                    redirectByRole(response.data.userType)
-                }
+                redirectByRole(response.data.userType)
+                
+                // Fetch profile in background (optional, for more complete data)
+                userApi.getProfile()
+                    .then((profileResp) => {
+                        if (profileResp.success && profileResp.data) {
+                            const profile = profileResp.data
+                            localStorage.setItem('email', profile.email || response.data.email)
+                            localStorage.setItem('fullName', profile.fullName || response.data.fullName)
+                            localStorage.setItem('userType', profile.userType || response.data.userType)
+                            if (profile.avatarUrl) {
+                                localStorage.setItem('avatarUrl', profile.avatarUrl)
+                            } else if (response.data.avatarUrl) {
+                                localStorage.setItem('avatarUrl', response.data.avatarUrl)
+                            } else {
+                                localStorage.removeItem('avatarUrl')
+                            }
+                            setUser({
+                                token: response.data.token,
+                                refreshToken: response.data.refreshToken,
+                                userId: response.data.userId,
+                                email: profile.email || response.data.email,
+                                fullName: profile.fullName || response.data.fullName,
+                                userType: profile.userType || response.data.userType,
+                                avatarUrl: profile.avatarUrl || response.data.avatarUrl,
+                            })
+                        }
+                    })
+                    .catch(() => {
+                        // Ignore errors, we already have data from register response
+                    })
             }
         } catch (error) {
             throw error
@@ -196,6 +245,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const response = await authApi.loginWithGoogle(idToken)
             if (response.success && response.data) {
+                // Save user data immediately
+                localStorage.setItem('email', response.data.email)
+                localStorage.setItem('fullName', response.data.fullName)
+                localStorage.setItem('userType', response.data.userType)
+                if (response.data.avatarUrl) {
+                    localStorage.setItem('avatarUrl', response.data.avatarUrl)
+                } else {
+                    localStorage.removeItem('avatarUrl')
+                }
+                setUser(response.data)
+                
+                // Redirect immediately without waiting for profile fetch
                 const redirectByRole = (role?: string) => {
                     switch ((role || '').toUpperCase()) {
                         case 'ADMIN':
@@ -214,36 +275,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             break
                     }
                 }
-                try {
-                    const profileResp = await userApi.getProfile()
-                    if (profileResp.success && profileResp.data) {
-                        const profile = profileResp.data
-                        localStorage.setItem('email', profile.email || '')
-                        localStorage.setItem('fullName', profile.fullName || '')
-                        localStorage.setItem('userType', profile.userType || 'CUSTOMER')
-                        setUser({
-                            token: response.data.token,
-                            refreshToken: response.data.refreshToken,
-                            userId: response.data.userId,
-                            email: profile.email,
-                            fullName: profile.fullName,
-                            userType: profile.userType,
-                        })
-                        redirectByRole(profile.userType)
-                    } else {
-                        localStorage.setItem('email', response.data.email)
-                        localStorage.setItem('fullName', response.data.fullName)
-                        localStorage.setItem('userType', response.data.userType)
-                        setUser(response.data)
-                        redirectByRole(response.data.userType)
-                    }
-                } catch {
-                    localStorage.setItem('email', response.data.email)
-                    localStorage.setItem('fullName', response.data.fullName)
-                    localStorage.setItem('userType', response.data.userType)
-                    setUser(response.data)
-                    redirectByRole(response.data.userType)
-                }
+                redirectByRole(response.data.userType)
+                
+                // Fetch profile in background (optional, for more complete data)
+                userApi.getProfile()
+                    .then((profileResp) => {
+                        if (profileResp.success && profileResp.data) {
+                            const profile = profileResp.data
+                            localStorage.setItem('email', profile.email || response.data.email)
+                            localStorage.setItem('fullName', profile.fullName || response.data.fullName)
+                            localStorage.setItem('userType', profile.userType || response.data.userType)
+                            if (profile.avatarUrl) {
+                                localStorage.setItem('avatarUrl', profile.avatarUrl)
+                            } else if (response.data.avatarUrl) {
+                                localStorage.setItem('avatarUrl', response.data.avatarUrl)
+                            } else {
+                                localStorage.removeItem('avatarUrl')
+                            }
+                            setUser({
+                                token: response.data.token,
+                                refreshToken: response.data.refreshToken,
+                                userId: response.data.userId,
+                                email: profile.email || response.data.email,
+                                fullName: profile.fullName || response.data.fullName,
+                                userType: profile.userType || response.data.userType,
+                                avatarUrl: profile.avatarUrl || response.data.avatarUrl,
+                            })
+                        }
+                    })
+                    .catch(() => {
+                        // Ignore errors, we already have data from login response
+                    })
             }
         } catch (error) {
             throw error
@@ -254,6 +316,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
             const response = await authApi.loginWithFacebook(accessToken)
             if (response.success && response.data) {
+                // Save user data immediately
+                localStorage.setItem('email', response.data.email)
+                localStorage.setItem('fullName', response.data.fullName)
+                localStorage.setItem('userType', response.data.userType)
+                setUser(response.data)
+                
+                // Redirect immediately without waiting for profile fetch
                 const redirectByRole = (role?: string) => {
                     switch ((role || '').toUpperCase()) {
                         case 'ADMIN':
@@ -272,36 +341,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                             break
                     }
                 }
-                try {
-                    const profileResp = await userApi.getProfile()
-                    if (profileResp.success && profileResp.data) {
-                        const profile = profileResp.data
-                        localStorage.setItem('email', profile.email || '')
-                        localStorage.setItem('fullName', profile.fullName || '')
-                        localStorage.setItem('userType', profile.userType || 'CUSTOMER')
-                        setUser({
-                            token: response.data.token,
-                            refreshToken: response.data.refreshToken,
-                            userId: response.data.userId,
-                            email: profile.email,
-                            fullName: profile.fullName,
-                            userType: profile.userType,
-                        })
-                        redirectByRole(profile.userType)
-                    } else {
-                        localStorage.setItem('email', response.data.email)
-                        localStorage.setItem('fullName', response.data.fullName)
-                        localStorage.setItem('userType', response.data.userType)
-                        setUser(response.data)
-                        redirectByRole(response.data.userType)
-                    }
-                } catch {
-                    localStorage.setItem('email', response.data.email)
-                    localStorage.setItem('fullName', response.data.fullName)
-                    localStorage.setItem('userType', response.data.userType)
-                    setUser(response.data)
-                    redirectByRole(response.data.userType)
-                }
+                redirectByRole(response.data.userType)
+                
+                // Fetch profile in background (optional, for more complete data)
+                userApi.getProfile()
+                    .then((profileResp) => {
+                        if (profileResp.success && profileResp.data) {
+                            const profile = profileResp.data
+                            localStorage.setItem('email', profile.email || response.data.email)
+                            localStorage.setItem('fullName', profile.fullName || response.data.fullName)
+                            localStorage.setItem('userType', profile.userType || response.data.userType)
+                            setUser({
+                                token: response.data.token,
+                                refreshToken: response.data.refreshToken,
+                                userId: response.data.userId,
+                                email: profile.email || response.data.email,
+                                fullName: profile.fullName || response.data.fullName,
+                                userType: profile.userType || response.data.userType,
+                            })
+                        }
+                    })
+                    .catch(() => {
+                        // Ignore errors, we already have data from login response
+                    })
             }
         } catch (error) {
             throw error

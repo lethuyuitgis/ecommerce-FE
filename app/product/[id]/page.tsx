@@ -1,33 +1,48 @@
-'use client'
-
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { ProductDetail } from "@/components/product/product-detail"
 import { ProductReviews } from "@/components/product/product-reviews"
 import { RelatedProducts } from "@/components/product/related-products"
 import { notFound } from "next/navigation"
-import { useProduct } from "@/hooks/useProducts"
+import { serverProductsApi, serverReviewsApi, serverWishlistApi, serverOrdersApi } from "@/lib/api/server"
+import { cookies, headers } from "next/headers"
 
-export default function ProductPage({ params }: { params: { id: string } }) {
-  const { product, loading, error } = useProduct(params.id)
-
-  if (loading) {
-    return (
-      <div className="min-h-screen">
-        <Header />
-        <main className="bg-muted/30">
-          <div className="container mx-auto px-4 py-6">
-            <div className="text-center py-12">Đang tải sản phẩm...</div>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    )
-  }
-
-  if (error || !product) {
+export default async function ProductPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
+  const resolvedParams = params instanceof Promise ? await params : params
+  const cookieStore = await cookies()
+  const headersList = await headers()
+  
+  // Fetch product, reviews, related products, wishlist status, and purchase status in parallel
+  const [productResponse, reviewsResponse, relatedProductsResponse, wishlistResponse, purchaseResponse] = await Promise.all([
+    serverProductsApi.getById(resolvedParams.id),
+    serverReviewsApi.getProductReviews(resolvedParams.id, 0, 10),
+    serverProductsApi.getFeatured(0, 12),
+    serverWishlistApi.checkWishlist(resolvedParams.id, cookieStore, headersList),
+    serverOrdersApi.checkPurchase(resolvedParams.id, cookieStore, headersList),
+  ])
+  
+  if (!productResponse.success || !productResponse.data) {
     notFound()
   }
+  
+  const product = productResponse.data
+  const reviews = reviewsResponse.success && reviewsResponse.data ? reviewsResponse.data.content : []
+  const relatedProducts = relatedProductsResponse.success && relatedProductsResponse.data 
+    ? relatedProductsResponse.data.content.filter(p => p.id !== product.id).slice(0, 6)
+    : []
+  const inWishlist = wishlistResponse.success && wishlistResponse.data === true
+  const purchaseStatus = purchaseResponse.success && purchaseResponse.data ? purchaseResponse.data : { hasPurchased: false }
+  
+  // Debug logging (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Purchase status response:', {
+      success: purchaseResponse.success,
+      data: purchaseResponse.data,
+      message: purchaseResponse.message,
+      finalPurchaseStatus: purchaseStatus,
+    })
+  }
+
 
   // Transform API product to component format
   const transformedProduct = {
@@ -39,9 +54,16 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     images: product.images || [product.primaryImage || '/placeholder.svg'].filter(Boolean),
     rating: product.rating || 0,
     sold: product.totalSold || 0,
+    totalReviews: product.totalReviews || 0,
     category: product.categoryName,
     quantity: product.quantity || 0,
   }
+
+  // Extract variants from product
+  const variants = product.variants ? {
+    sizes: Array.isArray(product.variants.sizes) ? product.variants.sizes : [],
+    colors: Array.isArray(product.variants.colors) ? product.variants.colors : [],
+  } : undefined
 
   return (
     <div className="min-h-screen">
@@ -58,7 +80,13 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           </div>
 
           {/* Product Detail */}
-          <ProductDetail product={transformedProduct} />
+          <ProductDetail 
+            product={transformedProduct} 
+            variants={variants}
+            sellerId={product.sellerId}
+            sellerName={product.sellerName}
+            initialInWishlist={inWishlist} 
+          />
 
           {/* Product Description */}
           <div className="mt-6 rounded-lg bg-white p-6">
@@ -100,10 +128,18 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           )}
 
           {/* Reviews */}
-          <ProductReviews productId={product.id} />
+          <ProductReviews 
+            productId={product.id} 
+            initialReviews={reviews}
+            initialTotalPages={reviewsResponse.success && reviewsResponse.data ? reviewsResponse.data.totalPages : 0}
+            initialPurchaseStatus={purchaseStatus}
+          />
 
           {/* Related Products */}
-          <RelatedProducts currentProductId={product.id} />
+          <RelatedProducts 
+            currentProductId={product.id} 
+            initialProducts={relatedProducts}
+          />
         </div>
       </main>
       <Footer />

@@ -151,7 +151,17 @@ export function useProduct(id: string) {
   return { product, loading, error, refreshProduct: () => fetchProduct(true) }
 }
 
-export function useProductsByCategory(slug: string, page: number = 0, size: number = 20) {
+export function useProductsByCategory(
+  slug: string, 
+  page: number = 0, 
+  size: number = 20,
+  filters?: {
+    minPrice?: number
+    maxPrice?: number
+    minRating?: number
+    subcategory?: string
+  }
+) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
@@ -166,24 +176,66 @@ export function useProductsByCategory(slug: string, page: number = 0, size: numb
     }
 
     const fetchProducts = async () => {
-      const cacheKey = `category:${slug}:${page}:${size}`
+      // Include filters in cache key to ensure proper caching
+      const filtersKey = filters 
+        ? JSON.stringify({ minPrice: filters.minPrice, maxPrice: filters.maxPrice, minRating: filters.minRating, subcategory: filters.subcategory })
+        : ''
+      const cacheKey = `category:${slug}:${page}:${size}:${filtersKey}`
       
       try {
         setLoading(true)
-        setError(null)
+        setError(null) // Clear error at the start
+        setProducts([]) // Clear products at the start
         
         const response = await apiCache.get(
           cacheKey,
-          () => productsApi.getByCategory(slug, page, size),
+          () => productsApi.getByCategory(slug, page, size, filters),
           2 * 60 * 1000 // 2 minutes cache
         )
         
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Category products response:', { slug, page, size, response })
+        }
+        
+        // Check if response is valid
+        if (!response) {
+          console.error('No response received')
+          setError(new Error('No response from server'))
+          setProducts([])
+          return
+        }
+        
         if (response.success && response.data) {
-          setProducts(response.data.content)
+          // Handle ProductPage format
+          if (response.data.content && Array.isArray(response.data.content)) {
+            const productsList = response.data.content.filter((p: any) => p && p.id)
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Setting products:', productsList.length, 'products')
+            }
+            setProducts(productsList)
+            setError(null) // Clear error on success
+          } else if (Array.isArray(response.data)) {
+            // Fallback: if data is directly an array
+            const productsList = response.data.filter((p: any) => p && p.id)
+            setProducts(productsList)
+            setError(null) // Clear error on success
+          } else {
+            console.error('Unexpected response format:', response.data)
+            setError(new Error('Unexpected response format from API'))
+            setProducts([])
+          }
+        } else {
+          const errorMsg = response?.message || response?.error || 'Failed to fetch products'
+          console.error('Failed to fetch category products:', { slug, response })
+          setError(new Error(errorMsg))
+          setProducts([])
         }
       } catch (err: any) {
         if (err.name !== 'AbortError') {
-          setError(err as Error)
+          console.error('Error fetching products by category:', err)
+          const errorMessage = err?.message || err?.error || 'Failed to fetch products'
+          setError(new Error(errorMessage))
+          setProducts([])
         }
       } finally {
         setLoading(false)
@@ -197,7 +249,7 @@ export function useProductsByCategory(slug: string, page: number = 0, size: numb
         abortControllerRef.current.abort()
       }
     }
-  }, [slug, page, size])
+  }, [slug, page, size, JSON.stringify(filters)])
 
   return { products, loading, error }
 }

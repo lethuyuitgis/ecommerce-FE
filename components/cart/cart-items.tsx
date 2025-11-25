@@ -8,16 +8,25 @@ import Link from "next/link"
 import { useCart } from "@/hooks/useCart"
 import { CartItem as CartItemType } from "@/lib/api/cart"
 import { toast } from "sonner"
+import { getImageUrl } from "@/lib/utils/image"
 
-export function CartItems() {
+interface CartItemsProps {
+  initialCartItems?: CartItemType[]
+}
+
+export function CartItems({ initialCartItems = [] }: CartItemsProps) {
   const { cartItems, loading, updateQuantity, removeItem, refreshCart } = useCart()
   const [selectedItems, setSelectedItems] = useState<string[]>([])
 
+  // Use initial data from server if available, otherwise use context
+  const displayItems = cartItems.length > 0 ? cartItems : initialCartItems
+  const isLoading = loading && cartItems.length === 0
+
   useEffect(() => {
-    if (cartItems.length > 0 && selectedItems.length === 0) {
-      setSelectedItems(cartItems.map((item) => item.id))
+    if (displayItems.length > 0 && selectedItems.length === 0) {
+      setSelectedItems(displayItems.map((item) => item.id))
     }
-  }, [cartItems])
+  }, [displayItems, selectedItems.length])
 
   const handleUpdateQuantity = async (id: string, newQuantity: number) => {
     try {
@@ -52,11 +61,11 @@ export function CartItems() {
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return <div className="rounded-lg bg-white p-8 text-center">Đang tải giỏ hàng...</div>
   }
 
-  if (cartItems.length === 0) {
+  if (displayItems.length === 0) {
     return (
       <div className="rounded-lg bg-white p-8 text-center">
         <p className="mb-4 text-muted-foreground">Giỏ hàng của bạn đang trống</p>
@@ -71,8 +80,8 @@ export function CartItems() {
     <div className="rounded-lg bg-white">
       {/* Header */}
       <div className="flex items-center gap-4 border-b p-4">
-        <Checkbox checked={selectedItems.length === cartItems.length} onCheckedChange={toggleSelectAll} />
-        <span className="flex-1 font-medium text-foreground">Sản Phẩm ({cartItems.length})</span>
+        <Checkbox checked={selectedItems.length === displayItems.length && displayItems.length > 0} onCheckedChange={toggleSelectAll} />
+        <span className="flex-1 font-medium text-foreground">Sản Phẩm ({displayItems.length})</span>
         <span className="w-24 text-center text-sm text-muted-foreground">Đơn Giá</span>
         <span className="w-32 text-center text-sm text-muted-foreground">Số Lượng</span>
         <span className="w-24 text-center text-sm text-muted-foreground">Số Tiền</span>
@@ -81,7 +90,7 @@ export function CartItems() {
 
       {/* Cart Items */}
       <div className="divide-y">
-        {cartItems.map((item) => {
+        {displayItems.map((item) => {
           const price = item.variantPrice || item.productPrice
           const totalPrice = price * item.quantity
 
@@ -90,7 +99,7 @@ export function CartItems() {
               <Checkbox checked={selectedItems.includes(item.id)} onCheckedChange={() => toggleSelectItem(item.id)} />
               <Link href={`/product/${item.productId}`} className="flex flex-1 items-center gap-4">
                 <div className="h-20 w-20 overflow-hidden rounded border">
-                  <img src={item.productImage || "/placeholder.svg"} alt={item.productName} className="h-full w-full object-cover" />
+                  <img src={getImageUrl(item.productImage)} alt={item.productName} className="h-full w-full object-cover" />
                 </div>
                 <div className="flex-1">
                   <h3 className="mb-1 font-medium text-foreground line-clamp-2">{item.productName}</h3>
@@ -149,8 +158,8 @@ export function CartItems() {
       {/* Footer Actions */}
       <div className="flex items-center justify-between border-t p-4">
         <div className="flex items-center gap-4">
-          <Checkbox checked={selectedItems.length === cartItems.length} onCheckedChange={toggleSelectAll} />
-          <span className="text-sm text-foreground">Chọn Tất Cả ({cartItems.length})</span>
+          <Checkbox checked={selectedItems.length === displayItems.length && displayItems.length > 0} onCheckedChange={toggleSelectAll} />
+          <span className="text-sm text-foreground">Chọn Tất Cả ({displayItems.length})</span>
           <Button
             variant="ghost"
             size="sm"
@@ -169,7 +178,7 @@ export function CartItems() {
           <span className="text-sm text-muted-foreground">Tổng thanh toán ({selectedItems.length} Sản phẩm):</span>
           <span className="text-2xl font-bold text-primary">
             ₫
-            {cartItems
+            {displayItems
               .filter((item) => selectedItems.includes(item.id))
               .reduce((total, item) => total + (item.variantPrice || item.productPrice) * item.quantity, 0)
               .toLocaleString("vi-VN")}

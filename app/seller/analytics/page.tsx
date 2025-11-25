@@ -1,107 +1,38 @@
-"use client"
+import { AnalyticsClient } from "./analytics-client"
+import { serverSellerApi } from "@/lib/api/server"
+import { redirect } from "next/navigation"
+import { cookies, headers } from "next/headers"
 
-import dynamic from "next/dynamic"
-import { useEffect, useMemo, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Download, TrendingUp, TrendingDown, Loader2 } from "lucide-react"
-import { SellerSidebar } from "@/components/seller/seller-sidebar"
-import { toast } from "sonner"
-import { reportsApi } from "@/lib/api/reports"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { analyticsApi, SellerAnalyticsDashboard } from "@/lib/api/analytics"
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ period?: string }> | { period?: string }
+}) {
+  const resolvedParams = searchParams instanceof Promise ? await searchParams : (searchParams || {})
+  const period = (resolvedParams.period as '7days' | '30days' | '90days' | 'year') || '30days'
+  const cookieStore = await cookies()
+  const headersList = await headers()
 
-const RevenueChart = dynamic(
-  () => import("@/components/analytics/revenue-chart").then((mod) => mod.RevenueChart),
-  { ssr: false, loading: () => <ChartFallback /> }
-)
-const CustomerAnalytics = dynamic(
-  () => import("@/components/analytics/customer-analytics").then((mod) => mod.CustomerAnalytics),
-  { ssr: false, loading: () => <ChartFallback /> }
-)
-const TrafficAnalytics = dynamic(
-  () => import("@/components/analytics/traffic-analytics").then((mod) => mod.TrafficAnalytics),
-  { ssr: false, loading: () => <ChartFallback /> }
-)
-const TopProductsChart = dynamic(
-  () => import("@/components/analytics/top-products-chart").then((mod) => mod.TopProductsChart),
-  { loading: () => <div className="py-12 text-center text-muted-foreground">Đang tải dữ liệu...</div> }
-)
-
-function ChartFallback() {
-  return (
-    <div className="flex h-[350px] items-center justify-center rounded-lg border bg-muted/40">
-      <span className="text-sm text-muted-foreground">Đang tải biểu đồ...</span>
-    </div>
-  )
-}
-
-export default function AnalyticsPage() {
-  const [period, setPeriod] = useState<'7days' | '30days' | '90days' | 'year'>('30days')
-  const [exporting, setExporting] = useState(false)
-  const [dashboard, setDashboard] = useState<SellerAnalyticsDashboard | null>(null)
-  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
-
-  const handleExportReport = async (type: 'EXCEL' | 'PDF') => {
-    try {
-      setExporting(true)
-      toast.info("Đang tạo báo cáo...")
-
-      // Call backend API to export report
-      const blob = await reportsApi.exportReport({
-        type,
-        period,
-        reportType: 'all',
-      })
-
-      // Get filename from Content-Disposition header or generate default
-      const extension = type === 'EXCEL' ? 'xlsx' : 'pdf'
-      const periodLabel = period === '7days' ? '7-ngay' : period === '30days' ? '30-ngay' : period === '90days' ? '90-ngay' : 'nam'
-      const filename = `bao-cao-${periodLabel}-${new Date().toISOString().split('T')[0]}.${extension}`
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      toast.success(`Xuất báo cáo ${type === 'EXCEL' ? 'Excel' : 'PDF'} thành công!`)
-    } catch (error: any) {
-      console.error('Export error:', error)
-      toast.error(error.message || "Xuất báo cáo thất bại. Vui lòng thử lại.")
-    } finally {
-      setExporting(false)
-    }
+  // Fetch analytics data on server with authentication
+  const [dashboardResponse, reportSummaryResponse] = await Promise.all([
+    serverSellerApi.getAnalyticsDashboard(period, cookieStore, headersList),
+    serverSellerApi.getReportsSummary(period, 'all', cookieStore, headersList),
+  ])
+  
+  if (!dashboardResponse.success) {
+    redirect('/seller')
   }
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoadingAnalytics(true)
-        const response = await analyticsApi.getDashboard(period)
-        if (response.success && response.data) {
-          setDashboard(response.data)
-        }
-      } catch (error) {
-        console.error("Failed to load analytics dashboard", error)
-        toast.error("Không thể tải dữ liệu thống kê")
-      } finally {
-        setLoadingAnalytics(false)
-      }
-    }
-    load()
-  }, [period])
+  const dashboard = dashboardResponse.data || null
+  const reportSummary = reportSummaryResponse.success ? reportSummaryResponse.data || null : null
+
+  return (
+    <AnalyticsClient 
+      initialPeriod={period}
+      initialDashboard={dashboard}
+      initialReportSummary={reportSummary}
+    />
+  )
 
   const overview = dashboard?.overview
   const cards = useMemo(() => {
@@ -128,6 +59,15 @@ export default function AnalyticsPage() {
       },
     ]
   }, [overview])
+
+  const statusBreakdown = useMemo(() => {
+    if (!reportSummary?.statusBreakdown) return []
+    return Object.entries(reportSummary.statusBreakdown)
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [reportSummary])
+
+  const topCustomers = reportSummary?.topCustomers ?? []
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -251,6 +191,81 @@ export default function AnalyticsPage() {
               <span>Đang cập nhật dữ liệu...</span>
             </div>
           )}
+
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Phân bổ trạng thái đơn</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  {reportSummary ? `Từ ${new Date(reportSummary.startDate).toLocaleDateString('vi-VN')} đến ${new Date(reportSummary.endDate).toLocaleDateString('vi-VN')}` : 'Theo kỳ đã chọn'}
+                </p>
+              </CardHeader>
+              <CardContent>
+                {loadingReportSummary ? (
+                  <ChartFallback />
+                ) : !statusBreakdown.length ? (
+                  <div className="text-sm text-muted-foreground">Chưa có dữ liệu đơn hàng cho giai đoạn này.</div>
+                ) : (
+                  <div className="space-y-4">
+                    {statusBreakdown.map((item) => {
+                      const total = reportSummary?.totalOrders ?? 0
+                      const percent = total > 0 ? Math.round((item.count / total) * 100) : 0
+                      return (
+                        <div key={item.status}>
+                          <div className="flex items-center justify-between text-sm font-medium">
+                            <span>{item.status}</span>
+                            <span>{item.count.toLocaleString('vi-VN')} ({percent}%)</span>
+                          </div>
+                          <Progress value={percent} className="mt-2" />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Khách hàng tiêu biểu</CardTitle>
+                <p className="text-sm text-muted-foreground">Top khách hàng theo tổng chi tiêu</p>
+              </CardHeader>
+              <CardContent>
+                {loadingReportSummary ? (
+                  <ChartFallback />
+                ) : !topCustomers.length ? (
+                  <div className="text-sm text-muted-foreground">Chưa có dữ liệu khách hàng.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-muted-foreground">
+                          <th className="p-2">Khách hàng</th>
+                          <th className="p-2">Số đơn</th>
+                          <th className="p-2">Chi tiêu</th>
+                          <th className="p-2">Đơn gần nhất</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {topCustomers.map((customer) => (
+                          <tr key={customer.customerId} className="border-t">
+                            <td className="p-2">{customer.customerName}</td>
+                            <td className="p-2">{customer.orderCount}</td>
+                            <td className="p-2">{formatCurrency(customer.totalSpent)}</td>
+                            <td className="p-2">
+                              {customer.lastOrderAt
+                                ? new Date(customer.lastOrderAt).toLocaleString('vi-VN')
+                                : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,3 @@
-"use client"
-
 import { OrdersTable } from "@/components/orders/orders-table"
 import { SellerSidebar } from "@/components/seller/seller-sidebar"
 import { Button } from "@/components/ui/button"
@@ -14,13 +12,11 @@ export default function SellerOrdersPage() {
       <SellerSidebar />
       <div className="flex-1">
         <div className="p-6 lg:p-8">
-          {/* Header */}
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-foreground">Quản Lý Đơn Hàng</h1>
             <p className="text-muted-foreground mt-1">Theo dõi và xử lý đơn hàng của khách</p>
           </div>
 
-          {/* Filters */}
           <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center flex-1">
               <div className="relative flex-1 max-w-md">
@@ -45,7 +41,6 @@ export default function SellerOrdersPage() {
             </Button>
           </div>
 
-          {/* Orders Tabs */}
           <Tabs defaultValue="all" className="space-y-4">
             <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
               <TabsTrigger value="all">Tất cả</TabsTrigger>
