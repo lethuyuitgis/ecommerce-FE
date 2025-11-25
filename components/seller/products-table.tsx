@@ -29,42 +29,6 @@ import {
 import { productsApi, Product } from "@/lib/api/products"
 import { toast } from "sonner"
 
-const mockProducts = [
-  {
-    id: "1",
-    name: "iPhone 15 Pro Max 256GB",
-    image: "/modern-smartphone.png",
-    sku: "IP15PM256",
-    category: "Điện tử",
-    price: 29990000,
-    stock: 45,
-    sold: 128,
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Áo Thun Nam Basic",
-    image: "/plain-white-tshirt.png",
-    sku: "ATN001",
-    category: "Thời trang",
-    price: 199000,
-    stock: 0,
-    sold: 456,
-    status: "inactive",
-  },
-  {
-    id: "3",
-    name: "Son Môi Lì Cao Cấp",
-    image: "/assorted-lipsticks.png",
-    sku: "SML002",
-    category: "Làm đẹp",
-    price: 350000,
-    stock: 89,
-    sold: 234,
-    status: "active",
-  },
-]
-
 export function ProductsTable({
   q,
   categoryId,
@@ -192,7 +156,7 @@ export function ProductsTable({
           return
         }
       }
-      
+
       const response = await productsApi.setFlashSale(product.id, enabled, flashPrice)
       if (response.success) {
         toast.success(enabled ? "Đã bật flash sale" : "Đã tắt flash sale")
@@ -234,7 +198,10 @@ export function ProductsTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-12">
-                <Checkbox checked={selectedProducts.length === mockProducts.length} onCheckedChange={toggleSelectAll} />
+                <Checkbox
+                  checked={items.length > 0 && selectedProducts.length === items.length}
+                  onCheckedChange={toggleSelectAll}
+                />
               </TableHead>
               <TableHead>Sản phẩm</TableHead>
               <TableHead>SKU</TableHead>
