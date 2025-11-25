@@ -1,16 +1,24 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { cartApi, CartItem } from '@/lib/api/cart'
 import { apiCache } from '@/lib/api/cache'
+import { useAuth } from '@/contexts/AuthContext'
 
 export function useCart() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const { isAuthenticated } = useAuth()
 
   const fetchCart = useCallback(async (skipCache: boolean = false) => {
     const cacheKey = 'cart'
     
     try {
+      if (!isAuthenticated) {
+        setCartItems([])
+        setLoading(false)
+        return
+      }
+
       setLoading(true)
       
       if (skipCache) {
@@ -31,11 +39,16 @@ export function useCart() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isAuthenticated])
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setCartItems([])
+      setLoading(false)
+      return
+    }
     fetchCart()
-  }, [fetchCart])
+  }, [fetchCart, isAuthenticated])
 
   const addToCart = useCallback(async (
     productId: string,

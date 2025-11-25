@@ -11,25 +11,37 @@ import { useEffect, useState } from "react"
 import { cartApi } from "@/lib/api/cart"
 
 export function HeaderClient() {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const [cartCount, setCartCount] = useState(0)
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setCartCount(0)
+      return
+    }
+
+    let isMounted = true
     const loadCart = async () => {
       try {
         const response = await cartApi.getCart()
+        if (!isMounted) return
         if (response.success && Array.isArray(response.data)) {
           const count = response.data.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
           setCartCount(count)
         }
       } catch (error) {
-        console.error("Error loading cart:", error)
+        if (process.env.NODE_ENV === "development") {
+          console.error("Error loading cart:", error)
+        }
       }
     }
     loadCart()
-  }, [])
 
-  const isAuthenticated = !!user
+    return () => {
+      isMounted = false
+    }
+  }, [isAuthenticated])
+
   const role = (user?.userType || "").toUpperCase()
 
   const chatPath = !isAuthenticated
