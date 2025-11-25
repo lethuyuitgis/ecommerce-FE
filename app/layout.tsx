@@ -4,12 +4,8 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
-import { Toaster } from "sonner"
-import { AuthProvider } from "@/contexts/AuthContext"
-import { RouteLoadingProvider } from "@/contexts/RouteLoadingContext"
-import { RouteLoadingIndicator } from "@/components/common/route-loading-indicator"
-import { SyncUserCookie } from "@/components/common/sync-user-cookie"
 import "./globals.css"
+import { Providers } from "./providers"
 
 export const metadata: Metadata = {
   title: "ShopCuaThuy - Mua Sắm Trực Tuyến",
@@ -26,15 +22,10 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <RouteLoadingProvider>
-          <AuthProvider>
-            <SyncUserCookie />
-            <RouteLoadingIndicator />
-            <Suspense fallback={null}>{children}</Suspense>
-            <Analytics />
-            <Toaster position="top-right" richColors />
-          </AuthProvider>
-        </RouteLoadingProvider>
+        <Providers>
+          <Suspense fallback={null}>{children}</Suspense>
+        </Providers>
+        <Analytics />
       </body>
     </html>
   )
