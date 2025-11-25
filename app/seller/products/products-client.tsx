@@ -48,79 +48,25 @@ export function ProductsClient({ initialCategories }: ProductsClientProps) {
     setIsExporting(true)
     try {
       const { sellerApi } = await import('@/lib/api/seller')
-      const response = await sellerApi.getProducts(0, 1000)
-      const data = response
+      const { blob, filename } = await sellerApi.exportProducts()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
 
-      if (data.success && data.data) {
-        const products = data.data.content || data.data.products || []
-
-        if (products.length === 0) {
-          toast({
-            title: "Thông báo",
-            description: "Không có sản phẩm nào để xuất",
-            variant: "destructive",
-          })
-          return
-        }
-
-        const XLSX = await import('xlsx')
-
-        const excelData = products.map((product: any, index: number) => ({
-          STT: index + 1,
-          "Tên sản phẩm": product.name || "",
-          "Mô tả": product.description || "",
-          "Giá": product.price || 0,
-          "Giá so sánh": product.comparePrice || "",
-          "Danh mục": product.categoryName || product.category?.name || "",
-          "SKU": product.sku || "",
-          "Hình ảnh": Array.isArray(product.images)
-            ? product.images.join(", ")
-            : (product.primaryImage || product.image || ""),
-          "Số lượng": product.quantity || product.stock || 0,
-          "Đã bán": product.totalSold || product.sold || 0,
-          "Trạng thái": product.status || "",
-        }))
-
-        const wb = XLSX.utils.book_new()
-        const ws = XLSX.utils.json_to_sheet(excelData)
-
-        ws["!cols"] = [
-          { wch: 5 },
-          { wch: 30 },
-          { wch: 50 },
-          { wch: 15 },
-          { wch: 15 },
-          { wch: 20 },
-          { wch: 15 },
-          { wch: 100 },
-          { wch: 15 },
-          { wch: 15 },
-          { wch: 15 },
-        ]
-
-        XLSX.utils.book_append_sheet(wb, ws, "Sản phẩm")
-
-        const timestamp = new Date().toISOString().split("T")[0]
-        const filename = `products_${timestamp}.xlsx`
-
-        XLSX.writeFile(wb, filename)
-
-        toast({
-          title: "Thành công",
-          description: `Đã xuất ${products.length} sản phẩm ra file Excel: ${filename}`,
-        })
-      } else {
-        toast({
-          title: "Lỗi",
-          description: data.message || "Không thể lấy danh sách sản phẩm",
-          variant: "destructive",
-        })
-      }
+      toast({
+        title: "Thành công",
+        description: `Đã xuất danh sách sản phẩm ra file ${filename}`,
+      })
     } catch (error: any) {
       console.error('Export error:', error)
       toast({
         title: "Lỗi",
-        description: error.message || "Không thể xuất file Excel. Vui lòng thử lại.",
+        description: error.message || "Không thể xuất file. Vui lòng thử lại.",
         variant: "destructive",
       })
     } finally {

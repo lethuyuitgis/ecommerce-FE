@@ -1,4 +1,5 @@
-import { apiClient, ApiResponse } from './client'
+import { apiClient, ApiResponse, apiClientFormData } from './client'
+import { apiClientBlob } from './client-blob'
 
 export interface Seller {
   id: string
@@ -184,10 +185,22 @@ export const sellerApi = {
   },
 
   importProducts: async (file: File): Promise<ApiResponse<{ success: number; failed: number; errors?: string[] }>> => {
-    const { apiClientFormData } = await import('./client')
     const formData = new FormData()
     formData.append('file', file)
     return apiClientFormData<{ success: number; failed: number; errors?: string[] }>('/seller/products/import', formData)
+  },
+
+  exportProducts: async (): Promise<{ blob: Blob; filename: string }> => {
+    const { blob, headers } = await apiClientBlob('/seller/products/export')
+    const disposition = headers.get('Content-Disposition') || headers.get('content-disposition')
+    let filename = `products_${new Date().toISOString().split('T')[0]}.xlsx`
+    if (disposition) {
+      const match = disposition.match(/filename="?([^"]+)"?/)
+      if (match && match[1]) {
+        filename = match[1]
+      }
+    }
+    return { blob, filename }
   },
 
   getBusinessHours: async (): Promise<ApiResponse<Record<string, { open: string; close: string }>>> => {
