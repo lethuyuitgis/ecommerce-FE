@@ -39,10 +39,61 @@ export interface UpdateShippingStatusRequest {
   failureReason?: string
 }
 
+export interface AdminShipmentDTO {
+  id: string
+  orderId: string
+  sellerId?: string
+  shipperId?: string
+  trackingNumber?: string
+  status: string
+  pickupAddress?: {
+    name?: string
+    phone?: string
+    address?: string
+    province?: string
+    district?: string
+    ward?: string
+  }
+  deliveryAddress?: {
+    name?: string
+    phone?: string
+    address?: string
+    province?: string
+    district?: string
+    ward?: string
+  }
+  packageWeight?: number
+  packageSize?: string
+  codAmount?: number
+  notes?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export const shipperApi = {
-  // Lấy danh sách đơn hàng cần vận chuyển
-  // Tạm thời dùng endpoint /orders và filter client-side
-  // TODO: Backend cần tạo endpoint /api/shipper/orders
+  // Lấy danh sách shipments được điều phối cho shipper
+  getMyShipments: async (
+    status?: string
+  ): Promise<ApiResponse<AdminShipmentDTO[]>> => {
+    let url = `/shipments/my-shipments`
+    if (status && status !== 'all') {
+      url += `?status=${status}`
+    }
+    return apiClient<AdminShipmentDTO[]>(url)
+  },
+
+  // Cập nhật trạng thái shipment
+  updateShipmentStatus: async (
+    shipmentId: string,
+    status: string
+  ): Promise<ApiResponse<AdminShipmentDTO>> => {
+    return apiClient<AdminShipmentDTO>(`/shipments/${shipmentId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    })
+  },
+
+  // Lấy danh sách đơn hàng cần vận chuyển (deprecated - dùng getMyShipments thay thế)
   getOrdersToShip: async (
     page: number = 0,
     size: number = 20,
@@ -113,8 +164,7 @@ export const shipperApi = {
     return apiClient<Order>(`/orders/${orderId}`)
   },
 
-  // Cập nhật trạng thái vận chuyển
-  // Tạm thời dùng endpoint update order status
+  // Cập nhật trạng thái vận chuyển (deprecated - dùng updateShipmentStatus thay thế)
   updateShippingStatus: async (
     orderId: string,
     data: UpdateShippingStatusRequest
@@ -135,9 +185,6 @@ export const shipperApi = {
       method: 'PUT',
       body: JSON.stringify({ status: orderStatus }),
     })
-    
-    // TODO: Backend cần có endpoint riêng để update shipping status
-    // Hiện tại chỉ update order status, shipping status sẽ được backend tự động cập nhật
     
     return response
   },

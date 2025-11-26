@@ -188,13 +188,30 @@ async function fetchApi<T>(
     const response = await fetch(url, config)
 
     if (response.status === 401 || response.status === 403) {
-      clearAuthState()
-      handleUnauthorizedRedirect()
-      const message =
-        response.status === 401
-          ? 'Unauthorized - Token expired'
-          : 'Forbidden - Please login again'
-      throw new ApiError(message, response.status, { redirect: true })
+      // Check if this is a public endpoint that shouldn't require authentication
+      const isPublicEndpoint = endpoint.match(/^\/(products|categories|home|public|promotions|auth|upload\/image)/)
+      
+      if (isPublicEndpoint) {
+        // For public endpoints, don't redirect - just clear invalid auth state and continue
+        // The backend should allow access to public endpoints even without valid token
+        clearAuthState()
+        // Don't redirect for public endpoints - they should work without login
+        // Just throw error without redirect flag
+        const message =
+          response.status === 401
+            ? 'Unauthorized - Token expired'
+            : 'Forbidden - Please login again'
+        throw new ApiError(message, response.status, { redirect: false })
+      } else {
+        // For protected endpoints, redirect to login
+        clearAuthState()
+        handleUnauthorizedRedirect()
+        const message =
+          response.status === 401
+            ? 'Unauthorized - Token expired'
+            : 'Forbidden - Please login again'
+        throw new ApiError(message, response.status, { redirect: true })
+      }
     }
     
     // Try to parse JSON response

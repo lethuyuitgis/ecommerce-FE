@@ -374,6 +374,14 @@ export const serverMessagesApi = {
 
 // Shipper APIs
 export const serverShipperApi = {
+  getMyShipments: async (status?: string, cookies?: any, headers?: any) => {
+    let url = `/shipments/my-shipments`
+    if (status && status !== 'all') {
+      url += `?status=${status}`
+    }
+    return serverFetch(url, {}, cookies, headers)
+  },
+  
   getOrdersToShip: async (page = 0, size = 20, status?: string, cookies?: any, headers?: any) => {
     // Fetch orders and filter on server side
     const params = new URLSearchParams({
