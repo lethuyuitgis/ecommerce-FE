@@ -1,18 +1,44 @@
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { ProductCard } from "@/components/product/product-card"
-import { serverProductsApi } from "@/lib/api/server"
+import { serverProductsApi, serverCategoriesApi } from "@/lib/api/server"
 import { Product } from "@/lib/api/products"
 import { SearchClient } from "./search-client"
+import { SearchFilters } from "./search-filters"
 import { Search as SearchIcon } from "lucide-react"
 
 interface SearchPageProps {
     searchParams: Promise<{ q?: string; page?: string }> | { q?: string; page?: string }
 }
 
-async function SearchContent({ keyword, page }: { keyword: string; page: number }) {
+async function SearchContent({ 
+    keyword, 
+    page,
+    categoryId,
+    minPrice,
+    maxPrice,
+    minRating,
+    sortBy,
+    direction
+}: { 
+    keyword: string
+    page: number
+    categoryId?: string
+    minPrice?: number
+    maxPrice?: number
+    minRating?: number
+    sortBy?: string
+    direction?: string
+}) {
     const size = 24
-    const response = await serverProductsApi.search(keyword, page, size)
+    const response = await serverProductsApi.search(keyword, page, size, {
+        categoryId,
+        minPrice,
+        maxPrice,
+        minRating,
+        sortBy: sortBy || 'createdAt',
+        direction: direction || 'DESC'
+    })
     
     const products: Product[] = response.success && response.data?.content 
         ? response.data.content 
@@ -45,6 +71,12 @@ async function SearchContent({ keyword, page }: { keyword: string; page: number 
         )
     }
 
+    // Fetch categories for filter
+    const categoriesResponse = await serverCategoriesApi.getAll()
+    const categories = categoriesResponse.success && categoriesResponse.data 
+        ? categoriesResponse.data.map(cat => ({ id: cat.id, name: cat.name }))
+        : []
+
     return (
         <div className="container mx-auto px-4 py-8">
             <div className="mb-6">
@@ -56,7 +88,15 @@ async function SearchContent({ keyword, page }: { keyword: string; page: number 
                 </p>
             </div>
 
-            {products.length === 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                {/* Filters Sidebar */}
+                <div className="lg:col-span-1">
+                    <SearchFilters categories={categories} />
+                </div>
+
+                {/* Products Grid */}
+                <div className="lg:col-span-3">
+                    {products.length === 0 ? (
                 <div className="text-center py-12">
                     <SearchIcon className="mx-auto h-16 w-16 text-muted-foreground mb-4 opacity-50" />
                     <p className="text-lg text-muted-foreground">Không tìm thấy sản phẩm nào</p>
@@ -70,12 +110,14 @@ async function SearchContent({ keyword, page }: { keyword: string; page: number 
                         ))}
                     </div>
 
-                    {/* Pagination - Client component for interactivity */}
-                    {totalPages > 1 && (
-                        <SearchClient keyword={keyword} currentPage={page} totalPages={totalPages} />
-                    )}
-                </>
-            )}
+                        {/* Pagination - Client component for interactivity */}
+                        {totalPages > 1 && (
+                            <SearchClient keyword={keyword} currentPage={page} totalPages={totalPages} />
+                        )}
+                    </>
+                )}
+                </div>
+            </div>
         </div>
     )
 }
@@ -84,12 +126,27 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     const resolvedParams = searchParams instanceof Promise ? await searchParams : searchParams
     const keyword = resolvedParams.q || ''
     const page = parseInt(resolvedParams.page || '0', 10)
+    const categoryId = resolvedParams.categoryId
+    const minPrice = resolvedParams.minPrice ? Number(resolvedParams.minPrice) : undefined
+    const maxPrice = resolvedParams.maxPrice ? Number(resolvedParams.maxPrice) : undefined
+    const minRating = resolvedParams.minRating ? Number(resolvedParams.minRating) : undefined
+    const sortBy = resolvedParams.sortBy
+    const direction = resolvedParams.direction
 
     return (
         <div className="min-h-screen">
             <Header />
             <main className="bg-muted/30">
-                <SearchContent keyword={keyword} page={page} />
+                <SearchContent 
+                    keyword={keyword} 
+                    page={page}
+                    categoryId={categoryId}
+                    minPrice={minPrice}
+                    maxPrice={maxPrice}
+                    minRating={minRating}
+                    sortBy={sortBy}
+                    direction={direction}
+                />
             </main>
             <Footer />
         </div>

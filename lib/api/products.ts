@@ -101,8 +101,30 @@ export const productsApi = {
     return apiClient<ProductPage>(`/products/category/${slug}?${params.toString()}`)
   },
 
-  search: async (keyword: string, page: number = 0, size: number = 20): Promise<ApiResponse<ProductPage>> => {
-    return apiClient<ProductPage>(`/products/search?keyword=${encodeURIComponent(keyword)}&page=${page}&size=${size}`)
+  search: async (
+    keyword: string, 
+    page: number = 0, 
+    size: number = 20,
+    filters?: {
+      categoryId?: string
+      minPrice?: number
+      maxPrice?: number
+      minRating?: number
+      sortBy?: string
+      direction?: string
+    }
+  ): Promise<ApiResponse<ProductPage>> => {
+    const params = new URLSearchParams()
+    if (keyword) params.set('keyword', keyword)
+    params.set('page', String(page))
+    params.set('size', String(size))
+    if (filters?.categoryId) params.set('categoryId', filters.categoryId)
+    if (filters?.minPrice !== undefined) params.set('minPrice', String(filters.minPrice))
+    if (filters?.maxPrice !== undefined) params.set('maxPrice', String(filters.maxPrice))
+    if (filters?.minRating !== undefined) params.set('minRating', String(filters.minRating))
+    if (filters?.sortBy) params.set('sortBy', filters.sortBy)
+    if (filters?.direction) params.set('direction', filters.direction)
+    return apiClient<ProductPage>(`/products/search?${params.toString()}`)
   },
 
   // Seller management endpoints

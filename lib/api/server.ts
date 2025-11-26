@@ -196,13 +196,30 @@ export const serverProductsApi = {
     return serverFetch(`/products/${id}`)
   },
 
-  search: async (keyword: string, page = 0, size = 20) => {
-    const params = new URLSearchParams({
-      keyword: keyword,
-      page: page.toString(),
-      size: size.toString(),
-    })
-    return serverFetch(`/products/search?${params}`)
+  search: async (
+    keyword: string, 
+    page = 0, 
+    size = 20,
+    filters?: {
+      categoryId?: string
+      minPrice?: number
+      maxPrice?: number
+      minRating?: number
+      sortBy?: string
+      direction?: string
+    }
+  ) => {
+    const params = new URLSearchParams()
+    if (keyword) params.set('keyword', keyword)
+    params.set('page', page.toString())
+    params.set('size', size.toString())
+    if (filters?.categoryId) params.set('categoryId', filters.categoryId)
+    if (filters?.minPrice !== undefined) params.set('minPrice', filters.minPrice.toString())
+    if (filters?.maxPrice !== undefined) params.set('maxPrice', filters.maxPrice.toString())
+    if (filters?.minRating !== undefined) params.set('minRating', filters.minRating.toString())
+    if (filters?.sortBy) params.set('sortBy', filters.sortBy)
+    if (filters?.direction) params.set('direction', filters.direction)
+    return serverFetch(`/products/search?${params.toString()}`)
   },
 
   getByCategorySlug: async (slug: string, page = 0, size = 24, filters?: {
