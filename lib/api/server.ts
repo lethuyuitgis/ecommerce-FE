@@ -335,7 +335,7 @@ export const serverPromotionsApi = {
       page: page.toString(),
       size: size.toString(),
     })
-    return serverFetch(`/seller/promotions?${params}`)
+    return serverFetch(`/promotions/active?${params}`)
   },
 }
 
