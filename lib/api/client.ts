@@ -143,6 +143,19 @@ export async function apiClient<T>(
   return requestPromise
 }
 
+function extractAuthorization(headers?: HeadersInit): string | undefined {
+  if (!headers) return undefined
+  if (headers instanceof Headers) {
+    return headers.get('Authorization') ?? undefined
+  }
+  if (Array.isArray(headers)) {
+    const found = headers.find(([key]) => key.toLowerCase() === 'authorization')
+    return found ? found[1] : undefined
+  }
+  const record = headers as Record<string, string>
+  return Object.entries(record).find(([key]) => key.toLowerCase() === 'authorization')?.[1]
+}
+
 async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -157,6 +170,7 @@ async function fetchApi<T>(
         ...headers,
         ...options.headers,
       }
+  const hasAuthToken = Boolean(extractAuthorization(finalHeaders))
   
   // Add auth headers even for FormData
   if (isFormData) {
@@ -188,30 +202,19 @@ async function fetchApi<T>(
     const response = await fetch(url, config)
 
     if (response.status === 401 || response.status === 403) {
-      // Check if this is a public endpoint that shouldn't require authentication
       const isPublicEndpoint = endpoint.match(/^\/(products|categories|home|public|promotions|auth|upload\/image)/)
-      
-      if (isPublicEndpoint) {
-        // For public endpoints, don't redirect - just clear invalid auth state and continue
-        // The backend should allow access to public endpoints even without valid token
+      const message =
+        response.status === 401
+          ? 'Unauthorized - Token expired'
+          : 'Forbidden - Vui lòng đăng nhập'
+      if (!isPublicEndpoint && hasAuthToken) {
         clearAuthState()
-        // Don't redirect for public endpoints - they should work without login
-        // Just throw error without redirect flag
-        const message =
-          response.status === 401
-            ? 'Unauthorized - Token expired'
-            : 'Forbidden - Please login again'
-        throw new ApiError(message, response.status, { redirect: false })
-      } else {
-        // For protected endpoints, redirect to login
-        clearAuthState()
-        handleUnauthorizedRedirect()
-        const message =
-          response.status === 401
-            ? 'Unauthorized - Token expired'
-            : 'Forbidden - Please login again'
         throw new ApiError(message, response.status, { redirect: true })
       }
+      if (hasAuthToken) {
+        clearAuthState()
+      }
+      throw new ApiError(message, response.status, { redirect: false })
     }
     
     // Try to parse JSON response
@@ -295,8 +298,7 @@ async function fetchApi<T>(
     return data ?? {}
   } catch (error) {
     if (error instanceof ApiError) {
-      if (error.status === 401 || error.status === 403) {
-        clearAuthState()
+      if ((error.status === 401 || error.status === 403) && error.data?.redirect !== false) {
         handleUnauthorizedRedirect()
       }
       if (process.env.NODE_ENV === 'development') {
@@ -355,6 +357,8 @@ export async function apiClientFormData<T>(
     }
   }
 
+  const authHeader = extractAuthorization(headers)
+
   try {
     const apiBaseUrl = getApiBaseUrl()
     const url = `${apiBaseUrl}${endpoint}`
@@ -371,13 +375,15 @@ export async function apiClientFormData<T>(
     })
 
     if (response.status === 401 || response.status === 403) {
-      clearAuthState()
-      handleUnauthorizedRedirect()
       const message =
         response.status === 401
           ? 'Unauthorized - Token expired'
-          : 'Forbidden - Please login again'
-      throw new ApiError(message, response.status, { redirect: true })
+          : 'Forbidden - Vui lòng đăng nhập'
+      if (authHeader) {
+        clearAuthState()
+        throw new ApiError(message, response.status, { redirect: true })
+      }
+      throw new ApiError(message, response.status, { redirect: false })
     }
 
     const data = await response.json()
@@ -406,6 +412,9 @@ export async function apiClientFormData<T>(
     return data ?? { success: true, data: data as T }
   } catch (error) {
     if (error instanceof ApiError) {
+      if ((error.status === 401 || error.status === 403) && error.data?.redirect !== false) {
+        handleUnauthorizedRedirect()
+      }
       throw error
     }
     throw new ApiError('Request error', 0, error)

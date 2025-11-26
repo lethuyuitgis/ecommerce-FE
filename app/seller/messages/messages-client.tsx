@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Client } from "@stomp/stompjs"
 import dynamic from "next/dynamic"
 import { SellerSidebar } from "@/components/seller/seller-sidebar"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { Loader2, MessageSquare, Search, Send, Users } from "lucide-react"
 import { toast } from "sonner"
 import { subscribeChatMessages } from "@/lib/realtime/chat-events"
+import { createStompClient } from "@/lib/realtime/websocket-client"
 
 const DebouncedInput = dynamic(() => import("@/components/shared/debounced-input"), { ssr: false, loading: () => <Input disabled placeholder="Đang tải..." /> })
 
@@ -37,6 +39,8 @@ export function MessagesClient({ initialConversations: initialConvs }: MessagesC
   const [customerSearch, setCustomerSearch] = useState("")
   const [suggestedCustomers, setSuggestedCustomers] = useState<SellerCustomer[]>([])
   const [fetchingCustomers, setFetchingCustomers] = useState(false)
+  const clientRef = useRef<Client | null>(null)
+  const [wsConnected, setWsConnected] = useState(false)
 
   const loadConversations = useCallback(async () => {
     try {
@@ -104,6 +108,99 @@ export function MessagesClient({ initialConversations: initialConvs }: MessagesC
     }
     fetchMessages(selectedId)
   }, [selectedId, fetchMessages])
+
+  useEffect(() => {
+    if (!user?.userId) {
+      if (clientRef.current) {
+        clientRef.current.deactivate()
+        clientRef.current = null
+      }
+      setWsConnected(false)
+      return
+    }
+
+    const client = createStompClient()
+    if (!client) {
+      return
+    }
+
+    client.onConnect = () => setWsConnected(true)
+    client.onDisconnect = () => setWsConnected(false)
+    client.onStompError = (frame) => {
+      console.error("[seller-messages][ws] STOMP error", frame)
+    }
+    client.onWebSocketError = (event) => {
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[seller-messages][ws] WebSocket error", event)
+      }
+    }
+
+    client.activate()
+    clientRef.current = client
+
+    return () => {
+      setWsConnected(false)
+      client.deactivate()
+      clientRef.current = null
+    }
+  }, [user?.userId])
+
+  const handleRealtimeIncoming = useCallback(
+    (incoming: Message) => {
+      if (!incoming?.conversationId) {
+        return
+      }
+
+      let conversationExists = true
+      setConversations((prev) => {
+        const idx = prev.findIndex((c) => c.id === incoming.conversationId)
+        if (idx === -1) {
+          conversationExists = false
+          return prev
+        }
+        const updated = [...prev]
+        const next = {
+          ...updated[idx],
+          lastMessage: incoming.content,
+          lastMessageAt: incoming.createdAt,
+        }
+        updated.splice(idx, 1)
+        updated.unshift(next)
+        return updated
+      })
+
+      if (!conversationExists) {
+        loadConversations()
+      }
+
+      if (incoming.conversationId === selectedId) {
+        setMessages((prev) => {
+          if (prev.some((msg) => msg.id === incoming.id)) {
+            return prev
+          }
+          return [...prev, incoming]
+        })
+      }
+    },
+    [loadConversations, selectedId]
+  )
+
+  useEffect(() => {
+    if (!wsConnected || !clientRef.current || !selectedId) {
+      return
+    }
+
+    const subscription = clientRef.current.subscribe(`/topic/conversations/${selectedId}`, (frame) => {
+      try {
+        const payload: Message = JSON.parse(frame.body)
+        handleRealtimeIncoming(payload)
+      } catch (error) {
+        console.error("[seller-messages][ws] Failed to parse payload", error)
+      }
+    })
+
+    return () => subscription?.unsubscribe()
+  }, [wsConnected, selectedId, handleRealtimeIncoming])
 
   useEffect(() => {
     const unsubscribe = subscribeChatMessages((event) => {

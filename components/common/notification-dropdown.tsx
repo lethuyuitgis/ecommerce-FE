@@ -14,23 +14,9 @@ import { notificationsApi, Notification } from "@/lib/api/notifications"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
 import { emitChatMessage } from "@/lib/realtime/chat-events"
+import { buildWebSocketUrl } from "@/lib/realtime/websocket-client"
 
 const MAX_NOTIFICATIONS = 50
-
-function buildWebSocketUrl(): string {
-  if (typeof window === "undefined") {
-    return ""
-  }
-  const explicit = process.env.NEXT_PUBLIC_WS_URL
-  if (explicit) {
-    return explicit
-  }
-  const base = (process.env.NEXT_PUBLIC_API_URL || window.location.origin).replace(/\/$/, "")
-  const normalized = base.replace(/\/api$/, "")
-  const protocol = normalized.startsWith("https") ? "wss" : "ws"
-  // Spring WebSocket với SockJS thường dùng /ws endpoint
-  return normalized.replace(/^https?/, protocol) + "/ws"
-}
 
 export function NotificationDropdown() {
   const { isAuthenticated, user } = useAuth()
