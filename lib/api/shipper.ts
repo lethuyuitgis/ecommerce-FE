@@ -71,6 +71,18 @@ export interface AdminShipmentDTO {
 }
 
 export const shipperApi = {
+  // Đăng ký làm shipper
+  register: async (): Promise<ApiResponse<string>> => {
+    return apiClient<string>(`/shipper/register`, {
+      method: 'POST',
+    })
+  },
+
+  // Kiểm tra trạng thái phê duyệt
+  getApprovalStatus: async (): Promise<ApiResponse<string>> => {
+    return apiClient<string>(`/shipper/status`)
+  },
+
   // Lấy danh sách shipments được điều phối cho shipper
   getMyShipments: async (
     status?: string

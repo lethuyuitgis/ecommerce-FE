@@ -3,12 +3,11 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { X, Upload, Plus, Minus, Globe, Loader2 } from "lucide-react"
+import { X, Upload, Plus, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { sellerApi } from "@/lib/api/seller"
 import { useToast } from "@/hooks/use-toast"
 import { apiClientWithFile } from "@/lib/api/client"
@@ -33,18 +32,6 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
   const [shippingMethod, setShippingMethod] = useState<string>("")
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
   const [submitting, setSubmitting] = useState(false)
-  const [crawlUrl, setCrawlUrl] = useState("")
-  const [crawlUrls, setCrawlUrls] = useState("")
-  const [isCrawling, setIsCrawling] = useState(false)
-  const [crawlMode, setCrawlMode] = useState<"single" | "batch">("single")
-  const [crawlProgress, setCrawlProgress] = useState<{
-    total: number
-    completed: number
-    failed: number
-    results: Array<{ url: string; success: boolean; product?: any; error?: string }>
-  } | null>(null)
-  const [crawledData, setCrawledData] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState("manual")
   const [isOpen, setIsOpen] = useState(!children) // If children provided, start closed. Otherwise, start open.
   const { toast } = useToast()
 
@@ -111,218 +98,6 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
     })
   }
 
-  const handleCrawl = async () => {
-    if (crawlMode === "single") {
-      if (!crawlUrl.trim()) {
-        toast({
-          title: "Lỗi",
-          description: "Vui lòng nhập URL sản phẩm",
-          variant: "destructive",
-        })
-        return
-      }
-
-      setIsCrawling(true)
-      try {
-        console.log('Crawling product from URL:', crawlUrl)
-        const response = await sellerApi.crawlProduct({ url: crawlUrl })
-        console.log('Crawl response:', response)
-
-        if (response.success && response.data) {
-          setCrawledData(response.data)
-
-          // Fill form with crawled data
-          setName(response.data.name || "")
-          setDescription(response.data.description || "")
-
-          // Set images
-          if (response.data.images && response.data.images.length > 0) {
-            setImagePreviews(response.data.images)
-          }
-
-          // Set variants if available
-          if (response.data.variants && response.data.variants.length > 0) {
-            const mappedVariants = response.data.variants.map((v: any) => ({
-              size: v.size || "",
-              color: v.color || "",
-              price: v.price?.toString() || response.data.price?.toString() || "",
-              stock: v.stock?.toString() || "",
-            }))
-            setVariants(mappedVariants.length > 0 ? mappedVariants : [{ size: "", color: "", price: "", stock: "" }])
-          }
-
-          toast({
-            title: "Thành công",
-            description: `Đã crawl sản phẩm "${response.data.name}" thành công! Vui lòng kiểm tra và chỉnh sửa thông tin.`,
-          })
-          // Switch to manual tab to show the filled form
-          setActiveTab("manual")
-        } else {
-          toast({
-            title: "Lỗi",
-            description: response.message || "Không thể crawl sản phẩm. Vui lòng kiểm tra URL và thử lại.",
-            variant: "destructive",
-          })
-        }
-      } catch (error: any) {
-        console.error('Crawl error:', error)
-        toast({
-          title: "Lỗi",
-          description: error.message || "Không thể crawl sản phẩm. Vui lòng thử lại.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsCrawling(false)
-      }
-    } else {
-      // Batch crawl mode
-      const urls = crawlUrls
-        .split('\n')
-        .map(url => url.trim())
-        .filter(url => url.length > 0)
-
-      if (urls.length === 0) {
-        toast({
-          title: "Lỗi",
-          description: "Vui lòng nhập ít nhất một URL sản phẩm",
-          variant: "destructive",
-        })
-        return
-      }
-
-      if (urls.length > 50) {
-        toast({
-          title: "Lỗi",
-          description: "Bạn chỉ có thể crawl tối đa 50 sản phẩm cùng lúc",
-          variant: "destructive",
-        })
-        return
-      }
-
-      setIsCrawling(true)
-      setCrawlProgress({
-        total: urls.length,
-        completed: 0,
-        failed: 0,
-        results: []
-      })
-
-      try {
-        // Try batch endpoint first
-        try {
-          const response = await sellerApi.crawlMultipleProducts({ urls })
-          if (response.success && response.data) {
-            setCrawlProgress({
-              total: response.data.results.length,
-              completed: response.data.success,
-              failed: response.data.failed,
-              results: response.data.results
-            })
-
-            toast({
-              title: "Hoàn thành",
-              description: `Đã crawl ${response.data.success}/${response.data.results.length} sản phẩm thành công. ${response.data.failed > 0 ? `${response.data.failed} sản phẩm thất bại.` : ''}`,
-            })
-
-            // If only one product succeeded, auto-fill the form
-            if (response.data.success === 1) {
-              const successResult = response.data.results.find(r => r.success)
-              if (successResult && successResult.product) {
-                setCrawledData(successResult.product)
-                const nameInput = document.getElementById("name") as HTMLInputElement
-                const descriptionInput = document.getElementById("description") as HTMLTextAreaElement
-                if (nameInput) nameInput.value = successResult.product.name
-                if (descriptionInput) descriptionInput.value = successResult.product.description || ""
-                if (successResult.product.images && successResult.product.images.length > 0) {
-                  setImagePreviews(successResult.product.images)
-                }
-                setActiveTab("manual")
-              }
-            }
-          }
-        } catch (batchError: any) {
-          // If batch endpoint fails, crawl sequentially from frontend with real-time progress
-          console.log('Batch endpoint not available, crawling sequentially...')
-
-          const results: Array<{ url: string; success: boolean; product?: any; error?: string }> = []
-          let successCount = 0
-          let failedCount = 0
-
-          for (let i = 0; i < urls.length; i++) {
-            const url = urls[i]
-            try {
-              const response = await sellerApi.crawlProduct({ url })
-              if (response.success && response.data) {
-                results.push({
-                  url,
-                  success: true,
-                  product: response.data,
-                })
-                successCount++
-              } else {
-                results.push({
-                  url,
-                  success: false,
-                  error: 'Failed to crawl product',
-                })
-                failedCount++
-              }
-            } catch (error: any) {
-              results.push({
-                url,
-                success: false,
-                error: error.message || 'Network error',
-              })
-              failedCount++
-            }
-
-            // Update progress in real-time
-            setCrawlProgress({
-              total: urls.length,
-              completed: successCount,
-              failed: failedCount,
-              results: [...results],
-            })
-
-            // Add delay between requests to avoid overwhelming
-            if (i < urls.length - 1) {
-              await new Promise(resolve => setTimeout(resolve, 300))
-            }
-          }
-
-          toast({
-            title: "Hoàn thành",
-            description: `Đã crawl ${successCount}/${urls.length} sản phẩm thành công. ${failedCount > 0 ? `${failedCount} sản phẩm thất bại.` : ''}`,
-          })
-
-          // If only one product succeeded, auto-fill the form
-          if (successCount === 1) {
-            const successResult = results.find(r => r.success)
-            if (successResult && successResult.product) {
-              setCrawledData(successResult.product)
-              const nameInput = document.getElementById("name") as HTMLInputElement
-              const descriptionInput = document.getElementById("description") as HTMLTextAreaElement
-              if (nameInput) nameInput.value = successResult.product.name
-              if (descriptionInput) descriptionInput.value = successResult.product.description || ""
-              if (successResult.product.images && successResult.product.images.length > 0) {
-                setImagePreviews(successResult.product.images)
-              }
-              setActiveTab("manual")
-            }
-          }
-        }
-      } catch (error: any) {
-        toast({
-          title: "Lỗi",
-          description: error.message || "Không thể crawl sản phẩm. Vui lòng thử lại.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsCrawling(false)
-      }
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) {
@@ -345,8 +120,6 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
       setSubmitting(true)
       // Upload images to MinIO via backend
       const uploadedUrls: string[] = []
-      // If crawledData already has external URLs in imagePreviews and no File objects chosen,
-      // we accept those URLs directly; otherwise upload selected files.
       if (images.length > 0) {
         for (const file of images) {
           const res = await apiClientWithFile<{ fileUrl: string }>('/upload/image', file, 'products')
@@ -415,163 +188,6 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Tabs for Manual Entry vs Crawl */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="manual">Nhập thủ công</TabsTrigger>
-              <TabsTrigger value="crawl">Crawl từ URL</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="crawl" className="space-y-4 mt-4">
-              {/* Crawl Mode Toggle */}
-              <div className="flex gap-2 p-1 bg-muted rounded-lg">
-                <Button
-                  type="button"
-                  variant={crawlMode === "single" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setCrawlMode("single")}
-                  className="flex-1"
-                >
-                  Crawl 1 sản phẩm
-                </Button>
-                <Button
-                  type="button"
-                  variant={crawlMode === "batch" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setCrawlMode("batch")}
-                  className="flex-1"
-                >
-                  Crawl nhiều sản phẩm
-                </Button>
-              </div>
-
-              {crawlMode === "single" ? (
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="crawl-url">
-                    URL sản phẩm <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="crawl-url"
-                      placeholder="Nhập URL sản phẩm (Shopee, Lazada, Tiki, Sendo...)"
-                      value={crawlUrl}
-                      onChange={(e) => setCrawlUrl(e.target.value)}
-                      className="flex-1"
-                      disabled={isCrawling}
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleCrawl}
-                      disabled={isCrawling || !crawlUrl.trim()}
-                    >
-                      {isCrawling ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Đang crawl...
-                        </>
-                      ) : (
-                        <>
-                          <Globe className="w-4 h-4 mr-2" />
-                          Crawl
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <p className="mt-2 text-sm text-gray-500">
-                    Hỗ trợ crawl từ Shopee, Lazada, Tiki, Sendo và các trang thương mại điện tử khác
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="crawl-urls">
-                      URLs sản phẩm (mỗi URL một dòng) <span className="text-red-500">*</span>
-                    </Label>
-                    <Textarea
-                      id="crawl-urls"
-                      placeholder="Nhập các URL sản phẩm, mỗi URL một dòng:&#10;https://shopee.vn/product1&#10;https://lazada.vn/product2&#10;https://tiki.vn/product3"
-                      value={crawlUrls}
-                      onChange={(e) => setCrawlUrls(e.target.value)}
-                      className="mt-2 min-h-32 font-mono text-sm"
-                      disabled={isCrawling}
-                    />
-                    <p className="mt-2 text-sm text-gray-500">
-                      Nhập tối đa 50 URLs. Mỗi URL một dòng. Hỗ trợ crawl từ Shopee, Lazada, Tiki, Sendo.
-                    </p>
-                  </div>
-
-                  {crawlProgress && (
-                    <div className="p-4 border rounded-lg bg-muted/50">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">Tiến độ crawl</span>
-                        <span className="text-sm text-muted-foreground">
-                          {crawlProgress.completed + crawlProgress.failed}/{crawlProgress.total}
-                        </span>
-                      </div>
-                      <div className="w-full bg-background rounded-full h-2 mb-4">
-                        <div
-                          className="bg-primary h-2 rounded-full transition-all"
-                          style={{
-                            width: `${((crawlProgress.completed + crawlProgress.failed) / crawlProgress.total) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      <div className="flex gap-4 text-sm">
-                        <span className="text-green-600">✓ Thành công: {crawlProgress.completed}</span>
-                        <span className="text-red-600">✗ Thất bại: {crawlProgress.failed}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  <Button
-                    type="button"
-                    onClick={handleCrawl}
-                    disabled={isCrawling || !crawlUrls.trim()}
-                    className="w-full"
-                  >
-                    {isCrawling ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Đang crawl...
-                      </>
-                    ) : (
-                      <>
-                        <Globe className="w-4 h-4 mr-2" />
-                        Crawl tất cả
-                      </>
-                    )}
-                  </Button>
-
-                  {crawlProgress && crawlProgress.results.length > 0 && (
-                    <div className="space-y-2 max-h-60 overflow-y-auto border rounded-lg p-4">
-                      <Label className="text-sm font-medium">Kết quả crawl:</Label>
-                      {crawlProgress.results.map((result, index) => (
-                        <div
-                          key={index}
-                          className={`p-2 rounded text-sm ${result.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
-                            }`}
-                        >
-                          <div className="flex items-start gap-2">
-                            <span>{result.success ? '✓' : '✗'}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="truncate text-xs text-muted-foreground">{result.url}</p>
-                              {result.success && result.product && (
-                                <p className="text-sm font-medium mt-1">{result.product.name}</p>
-                              )}
-                              {result.error && (
-                                <p className="text-xs text-red-600 mt-1">{result.error}</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="manual" className="mt-4 space-y-6">
               {/* Product Images */}
               <div>
                 <Label className="text-base font-medium mb-3 block">
@@ -704,8 +320,6 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
                   </Select>
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
 
           {/* Submit Buttons */}
           <div className="flex gap-3 pt-4 border-t">

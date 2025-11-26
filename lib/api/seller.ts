@@ -47,56 +47,6 @@ export interface SellerProductPage {
   number: number
 }
 
-export interface CrawlProductRequest {
-  url: string
-}
-
-export interface CrawlMultipleProductsRequest {
-  urls: string[]
-}
-
-export interface CrawledProduct {
-  name: string
-  description?: string
-  price: number
-  comparePrice?: number
-  images: string[]
-  category?: string
-  sku?: string
-  variants?: Array<{
-    size?: string
-    color?: string
-    price?: number
-    stock?: number
-  }>
-}
-
-export interface CrawlMultipleProductsResponse {
-  success: number
-  failed: number
-  results: Array<{
-    url: string
-    success: boolean
-    product?: CrawledProduct
-    error?: string
-  }>
-}
-
-export interface CrawlCategoryRequest {
-  category: string
-  platform?: string // shopee, lazada, tiki, sendo
-  limit?: number // số lượng sản phẩm cần crawl
-  page?: number
-}
-
-export interface CrawlCategoryResponse {
-  category: string
-  platform: string
-  total: number
-  products: CrawledProduct[]
-  errors?: string[]
-}
-
 export interface SellerOverview {
   totalRevenue: number
   revenueChange: string
@@ -137,26 +87,6 @@ export const sellerApi = {
     return apiClient<SellerProductPage>(`/seller/products?page=${page}&size=${size}`)
   },
 
-  crawlProduct: async (data: CrawlProductRequest): Promise<ApiResponse<CrawledProduct>> => {
-    return apiClient<CrawledProduct>('/seller/products/crawl', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  },
-
-  crawlMultipleProducts: async (data: CrawlMultipleProductsRequest): Promise<ApiResponse<CrawlMultipleProductsResponse>> => {
-    return apiClient<CrawlMultipleProductsResponse>('/seller/products/crawl/batch', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  },
-
-  crawlCategory: async (data: CrawlCategoryRequest): Promise<ApiResponse<CrawlCategoryResponse>> => {
-    return apiClient<CrawlCategoryResponse>('/seller/products/crawl/category', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-  },
 
   createProduct: async (data: {
     name: string

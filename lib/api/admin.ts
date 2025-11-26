@@ -239,6 +239,42 @@ export const adminApi = {
     const filename = params.fileNameHint || apiFilename
     return { blob, filename }
   },
+
+  // Approvals
+  getPendingSellers: async (): Promise<PendingSeller[]> => {
+    const res = await apiClient(`/admin/approvals/sellers/pending`, {}, true)
+    return unwrap<PendingSeller[]>(res)
+  },
+  getPendingShippers: async (): Promise<PendingShipper[]> => {
+    const res = await apiClient(`/admin/approvals/shippers/pending`, {}, true)
+    return unwrap<PendingShipper[]>(res)
+  },
+  approveSeller: async (sellerId: string): Promise<string> => {
+    const res = await apiClient(`/admin/approvals/sellers/${sellerId}/approve`, {
+      method: 'POST',
+    })
+    return unwrap<string>(res)
+  },
+  rejectSeller: async (sellerId: string, reason?: string): Promise<string> => {
+    const res = await apiClient(`/admin/approvals/sellers/${sellerId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    })
+    return unwrap<string>(res)
+  },
+  approveShipper: async (userId: string): Promise<string> => {
+    const res = await apiClient(`/admin/approvals/shippers/${userId}/approve`, {
+      method: 'POST',
+    })
+    return unwrap<string>(res)
+  },
+  rejectShipper: async (userId: string, reason?: string): Promise<string> => {
+    const res = await apiClient(`/admin/approvals/shippers/${userId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    })
+    return unwrap<string>(res)
+  },
 }
 
 export type AdminOverview = {
@@ -312,6 +348,31 @@ export type SellerCustomerSummary = {
   orderCount: number
   totalSpent: number
   lastOrderAt?: string | null
+}
+
+export type PendingSeller = {
+  id: string
+  userId: string
+  shopName: string
+  shopEmail?: string
+  shopPhone?: string
+  province?: string
+  district?: string
+  shopDescription?: string
+  status: string
+  userName?: string
+  userEmail?: string
+  userPhone?: string
+  createdAt?: string
+}
+
+export type PendingShipper = {
+  id: string
+  email: string
+  fullName?: string
+  phone?: string
+  status: string
+  createdAt?: string
 }
 
 

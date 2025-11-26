@@ -4,12 +4,11 @@ import { useEffect, useState } from "react"
 import { AddProductDialog } from "@/components/seller/add-product-dialog"
 import { ProductsTable } from "@/components/seller/products-table"
 import { SellerSidebar } from "@/components/seller/seller-sidebar"
-import { CrawlCategoryDialog } from "@/components/seller/crawl-category-dialog"
 import { ImportExcelDialog } from "@/components/seller/import-excel-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Download, Upload, Globe } from "lucide-react"
+import { Search, Plus, Download, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Category } from "@/lib/api/categories"
 
@@ -18,7 +17,6 @@ interface ProductsClientProps {
 }
 
 export function ProductsClient({ initialCategories }: ProductsClientProps) {
-  const [showCrawlCategory, setShowCrawlCategory] = useState(false)
   const [showImportExcel, setShowImportExcel] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [searchInput, setSearchInput] = useState("")
@@ -164,10 +162,6 @@ export function ProductsClient({ initialCategories }: ProductsClientProps) {
         </div>
       </div>
 
-      <CrawlCategoryDialog
-        open={showCrawlCategory}
-        onOpenChange={setShowCrawlCategory}
-      />
       <ImportExcelDialog
         open={showImportExcel}
         onOpenChange={setShowImportExcel}

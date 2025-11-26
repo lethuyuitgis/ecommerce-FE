@@ -44,6 +44,8 @@ export function ShipClient({
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter)
   const [page, setPage] = useState(initialPage)
   const [totalPages, setTotalPages] = useState(initialTotalPages)
+  const [approvalStatus, setApprovalStatus] = useState<string | null>(null)
+  const [checkingApproval, setCheckingApproval] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -55,6 +57,24 @@ export function ShipClient({
       toast.error("Bạn không có quyền truy cập trang này")
       router.push("/")
       return
+    }
+    
+    // Kiểm tra trạng thái phê duyệt
+    if (user?.userType === 'SHIPPER') {
+      shipperApi.getApprovalStatus()
+        .then(res => {
+          if (res.success && res.data) {
+            setApprovalStatus(res.data)
+          }
+        })
+        .catch(() => {
+          setApprovalStatus(null)
+        })
+        .finally(() => {
+          setCheckingApproval(false)
+        })
+    } else {
+      setCheckingApproval(false)
     }
   }, [user, authLoading, router])
 
@@ -176,10 +196,60 @@ export function ShipClient({
 
   const stats = getStatusStats()
 
-  if (authLoading) {
+  if (authLoading || checkingApproval) {
     return (
       <div className="container mx-auto px-4 py-8">
         <p>Đang tải...</p>
+      </div>
+    )
+  }
+
+  // Hiển thị thông báo nếu chưa được phê duyệt
+  if (approvalStatus && approvalStatus !== 'APPROVED') {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <HeaderClient />
+        <main className="flex-1 container mx-auto px-4 py-8">
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {approvalStatus === 'PENDING' ? (
+                  <>
+                    <Clock className="h-5 w-5 text-yellow-500" />
+                    Đang chờ phê duyệt
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="h-5 w-5 text-red-500" />
+                    Đã bị từ chối
+                  </>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {approvalStatus === 'PENDING' ? (
+                <div className="space-y-4">
+                  <p className="text-muted-foreground">
+                    Tài khoản shipper của bạn đang chờ admin phê duyệt. Vui lòng chờ trong giây lát.
+                  </p>
+                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                    Trạng thái: PENDING
+                  </Badge>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-muted-foreground">
+                    Tài khoản shipper của bạn đã bị từ chối. Vui lòng liên hệ admin để biết thêm chi tiết.
+                  </p>
+                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                    Trạng thái: REJECTED
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
       </div>
     )
   }
