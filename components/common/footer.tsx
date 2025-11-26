@@ -1,7 +1,111 @@
+'use client'
+
 import Link from "next/link"
+import { useEffect, useMemo, useState } from "react"
 import { Facebook, Instagram, Youtube, Truck, CreditCard, Shield } from "lucide-react"
+import { paymentApi, type PaymentMethod } from "@/lib/api/payment"
+import { shippingApi, type ShippingMethod } from "@/lib/api/shipping"
+
+type PaymentBadge = {
+  key: string
+  label: string
+  image?: string
+  textClass?: string
+}
+
+type ShippingBadge = {
+  key: string
+  label: string
+  textClass?: string
+}
+
+const DEFAULT_PAYMENT_BADGES: PaymentBadge[] = [
+  { key: "visa", label: "Visa", image: "/visa-application-process.png" },
+  { key: "mastercard", label: "Mastercard", image: "/mastercard-logo-abstract.png" },
+  { key: "jcb", label: "JCB", textClass: "text-primary" },
+  { key: "momo", label: "MoMo" },
+  { key: "zalopay", label: "ZaloPay", textClass: "text-blue-600" },
+  { key: "cod", label: "COD" },
+]
+
+const DEFAULT_SHIPPING_BADGES: ShippingBadge[] = [
+  { key: "ghn", label: "GHN", textClass: "text-red-600" },
+  { key: "ghtk", label: "GHTK", textClass: "text-blue-600" },
+  { key: "viettel", label: "Viettel", textClass: "text-orange-600" },
+]
+
+const PAYMENT_ICON_MAP: Record<string, PaymentBadge> = {
+  VISA: DEFAULT_PAYMENT_BADGES[0],
+  MASTERCARD: DEFAULT_PAYMENT_BADGES[1],
+  JCB: DEFAULT_PAYMENT_BADGES[2],
+  MOMO: DEFAULT_PAYMENT_BADGES[3],
+  ZALOPAY: DEFAULT_PAYMENT_BADGES[4],
+  COD: DEFAULT_PAYMENT_BADGES[5],
+  CASH_ON_DELIVERY: DEFAULT_PAYMENT_BADGES[5],
+  BANK: { key: "bank", label: "Bank" },
+  VNPAY: { key: "vnpay", label: "VNPay", textClass: "text-blue-500" },
+  PAYPAL: { key: "paypal", label: "PayPal", textClass: "text-blue-500" },
+}
 
 export function Footer() {
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
+
+  useEffect(() => {
+    let mounted = true
+    const fetchData = async () => {
+      try {
+        const [paymentRes, shippingRes] = await Promise.allSettled([
+          paymentApi.getMethods(),
+          shippingApi.getMethods(),
+        ])
+
+        if (mounted && paymentRes.status === "fulfilled" && paymentRes.value.success && paymentRes.value.data) {
+          setPaymentMethods(paymentRes.value.data.filter((m) => m.isActive !== false))
+        }
+
+        if (mounted && shippingRes.status === "fulfilled" && shippingRes.value.success && shippingRes.value.data) {
+          setShippingMethods(shippingRes.value.data.filter((m) => m.isActive !== false))
+        }
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("[Footer] Failed to load payment/shipping info", error)
+        }
+      }
+    }
+
+    fetchData()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const paymentBadges = useMemo<PaymentBadge[]>(() => {
+    if (!paymentMethods.length) {
+      return DEFAULT_PAYMENT_BADGES
+    }
+    return paymentMethods.map((method) => {
+      const code = (method.code || method.name || "").toUpperCase()
+      const mapped = PAYMENT_ICON_MAP[code]
+      return {
+        key: method.id || method.name,
+        label: method.name,
+        image: method.icon || mapped?.image,
+        textClass: mapped?.textClass,
+      }
+    })
+  }, [paymentMethods])
+
+  const shippingBadges = useMemo<ShippingBadge[]>(() => {
+    if (!shippingMethods.length) {
+      return DEFAULT_SHIPPING_BADGES
+    }
+    return shippingMethods.map((method) => ({
+      key: method.id || method.code || method.name,
+      label: method.name || method.code || "Shipping",
+    }))
+  }, [shippingMethods])
+
   return (
     <footer className="bg-background border-t">
       {/* Payment & Shipping Section */}
@@ -15,24 +119,19 @@ export function Footer() {
                 <h3 className="font-semibold">PHƯƠNG THỨC THANH TOÁN</h3>
               </div>
               <div className="grid grid-cols-4 gap-3">
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <img src="/visa-application-process.png" alt="Visa" className="h-6 object-contain" />
-                </div>
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <img src="/mastercard-logo-abstract.png" alt="Mastercard" className="h-6 object-contain" />
-                </div>
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <span className="text-xs font-bold text-primary">JCB</span>
-                </div>
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <span className="text-xs font-bold">MoMo</span>
-                </div>
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <span className="text-xs font-bold text-blue-600">ZaloPay</span>
-                </div>
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <span className="text-xs font-bold">COD</span>
-                </div>
+                {paymentBadges.map((method) => (
+                  <div
+                    key={method.key}
+                    className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition"
+                    title={method.label}
+                  >
+                    {method.image ? (
+                      <img src={method.image} alt={method.label} className="h-6 object-contain" />
+                    ) : (
+                      <span className={`text-xs font-bold ${method.textClass || ""}`}>{method.label}</span>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -43,15 +142,14 @@ export function Footer() {
                 <h3 className="font-semibold">ĐỐI TÁC VẬN CHUYỂN</h3>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <span className="text-xs font-bold text-red-600">GHN</span>
-                </div>
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <span className="text-xs font-bold text-blue-600">GHTK</span>
-                </div>
-                <div className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition">
-                  <span className="text-xs font-bold text-orange-600">Viettel</span>
-                </div>
+                {shippingBadges.map((partner) => (
+                  <div
+                    key={partner.key}
+                    className="flex h-12 items-center justify-center rounded border bg-white p-1 hover:shadow-md transition"
+                  >
+                    <span className={`text-xs font-bold ${partner.textClass || ""}`}>{partner.label}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
