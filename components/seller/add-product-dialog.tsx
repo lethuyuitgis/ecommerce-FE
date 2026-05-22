@@ -27,6 +27,10 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
   const [variants, setVariants] = useState([{ size: "", color: "", price: "", stock: "" }])
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [sku, setSku] = useState("")
+  const [price, setPrice] = useState("")
+  const [comparePrice, setComparePrice] = useState("")
+  const [quantity, setQuantity] = useState("10")
   const [category, setCategory] = useState<string>("")
   const [categories, setCategories] = useState<Category[]>([])
   const [shippingMethod, setShippingMethod] = useState<string>("")
@@ -151,11 +155,14 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
       const resp = await sellerApi.createProduct({
         name,
         description,
-        price: productPrice,
+        sku: sku || undefined,
+        price: productPrice || Number(price) || 0,
+        comparePrice: comparePrice ? Number(comparePrice) : undefined,
+        quantity: preparedVariants.length > 0 ? undefined : Number(quantity),
         categoryId: category || undefined,
         categoryName: chosenCategory?.name,
         images: uploadedUrls,
-        variants: preparedVariants,
+        variants: preparedVariants.length > 0 ? preparedVariants : undefined,
         status: "active",
         shippingMethodId: shippingMethod || undefined,
       })
@@ -253,11 +260,56 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
                     <SelectContent>
                       {categories.filter((c) => c.isActive !== false).map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
+                          {cat.fullPath || cat.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="sku">Mã SKU</Label>
+                  <Input
+                    id="sku"
+                    placeholder="VD: SKU-12345"
+                    value={sku}
+                    onChange={(e) => setSku(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="base-price">Giá gốc (VNĐ) <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="base-price"
+                    type="number"
+                    placeholder="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="compare-price">Giá so sánh (Phần gạch chéo)</Label>
+                  <Input
+                    id="compare-price"
+                    type="number"
+                    placeholder="0"
+                    value={comparePrice}
+                    onChange={(e) => setComparePrice(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="quantity">Số lượng tồn kho (Khi không có phân loại)</Label>
+                  <Input
+                    id="quantity"
+                    type="number"
+                    placeholder="0"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -313,7 +365,7 @@ export function AddProductDialog({ onClose, children }: AddProductDialogProps) {
                     <SelectContent>
                       {shippingMethods.filter((method) => method.isActive !== false).map((method) => (
                         <SelectItem key={method.id} value={method.id}>
-                          {method.name}{method.fee > 0 ? ` - ${method.fee.toLocaleString("vi-VN")}₫` : " (Miễn phí)"}
+                          {method.name}{(method.fee ?? 0) > 0 ? ` - ${(method.fee ?? 0).toLocaleString("vi-VN")}₫` : " (Miễn phí)"}
                         </SelectItem>
                       ))}
                     </SelectContent>

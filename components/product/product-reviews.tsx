@@ -121,7 +121,7 @@ export function ProductReviews({ productId, initialReviews = [], initialTotalPag
 
   const filteredReviews = reviews.filter((review) => {
     if (activeFilter === "all") return true
-    if (activeFilter === "images") return false // TODO: Add image support
+    if (activeFilter === "images") return Array.isArray(review.images) && review.images.length > 0
     return review.rating === Number.parseInt(activeFilter)
   })
 

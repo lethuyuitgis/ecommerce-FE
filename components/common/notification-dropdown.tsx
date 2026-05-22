@@ -82,11 +82,11 @@ export function NotificationDropdown() {
           }
           if (isChatNotification(payload)) {
             emitChatMessage({
-              conversationId: extractConversationId(payload.linkUrl),
+              conversationId: extractConversationId(payload.linkUrl || undefined),
               notificationId: payload.id,
               message: payload.message,
               senderId: payload.userId,
-              linkUrl: payload.linkUrl,
+              linkUrl: payload.linkUrl || undefined,
               raw: payload,
             })
           }
@@ -436,8 +436,8 @@ function NotificationItem({
     <div
       className={`group relative p-4 hover:bg-gray-50 transition-colors ${!notification.isRead ? "bg-blue-50/50" : ""}`}
     >
-      <Link href={notification.link || "#"} onClick={handleClick} className="flex gap-3">
-        <div className="flex-shrink-0 mt-1">{getIcon(notification.type)}</div>
+      <Link href={notification.linkUrl || "#"} onClick={handleClick} className="flex gap-3">
+        <div className="flex-shrink-0 mt-1">{getIcon(notification.type || "SYSTEM")}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <h4 className="font-medium text-sm line-clamp-1">{notification.title}</h4>

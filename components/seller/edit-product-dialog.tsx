@@ -69,8 +69,34 @@ export function EditProductDialog({ product, open, onOpenChange }: EditProductDi
       setCategoryId(product.categoryId || "")
       setImagePreviews(product.images || [product.primaryImage || ""].filter(Boolean))
 
-      // TODO: Load variants from API if available
-      setVariants([{ size: "", color: "", price: "", stock: "" }])
+      // Load variants from product DTO if available
+      const loaded = (product.productVariantDtos || []).map((v) => {
+        let size = ""
+        let color = ""
+        if (v.attributes) {
+          try {
+            const attrs = JSON.parse(v.attributes)
+            size = attrs.size || attrs.Size || ""
+            color = attrs.color || attrs.Color || ""
+          } catch {
+            // Fallback: parse from variantName "Size M / Đỏ"
+            const parts = v.variantName?.split("/").map((s) => s.trim()) ?? []
+            size = parts[0] || v.variantName || ""
+            color = parts[1] || ""
+          }
+        } else if (v.variantName) {
+          const parts = v.variantName.split("/").map((s) => s.trim())
+          size = parts[0] || v.variantName
+          color = parts[1] || ""
+        }
+        return {
+          size,
+          color,
+          price: v.variantPrice?.toString() || "",
+          stock: v.variantQuantity?.toString() || "0",
+        }
+      })
+      setVariants(loaded.length > 0 ? loaded : [{ size: "", color: "", price: "", stock: "" }])
     }
   }, [open, product])
 
@@ -288,7 +314,7 @@ export function EditProductDialog({ product, open, onOpenChange }: EditProductDi
                 <SelectContent>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
+                      {cat.fullPath || cat.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -364,7 +390,7 @@ export function EditProductDialog({ product, open, onOpenChange }: EditProductDi
                 <SelectContent>
                   {shippingMethods.filter((method) => method.isActive !== false).map((method) => (
                     <SelectItem key={method.id} value={method.id}>
-                      {method.name}{method.fee > 0 ? ` - ${method.fee.toLocaleString("vi-VN")}₫` : " (Miễn phí)"}
+                      {method.name}{(method.fee ?? 0) > 0 ? ` - ${(method.fee ?? 0).toLocaleString("vi-VN")}₫` : " (Miễn phí)"}
                     </SelectItem>
                   ))}
                 </SelectContent>

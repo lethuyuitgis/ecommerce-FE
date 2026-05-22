@@ -72,21 +72,28 @@ export async function getAuthHeaders(): Promise<HeadersInit> {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token')
     const userId = localStorage.getItem('userId')
+    const userType = localStorage.getItem('userType')
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
     }
     if (userId && userId.trim() !== '') {
       headers['X-User-Id'] = userId
     }
+    if (userType && userType.trim() !== '') {
+      headers['X-User-Role'] = userType
+    }
   } else {
     try {
       const { getAuthFromCookies } = await import('../server/auth-cookies')
-      const { token, userId } = await getAuthFromCookies()
+      const { token, userId, userType } = await getAuthFromCookies()
       if (token) {
         headers['Authorization'] = `Bearer ${token}`
       }
       if (userId) {
         headers['X-User-Id'] = userId
+      }
+      if (userType) {
+        headers['X-User-Role'] = userType
       }
     } catch (error) {
       // Ignore - likely running in an environment without Next.js headers
@@ -202,17 +209,27 @@ async function fetchApi<T>(
     const response = await fetch(url, config)
 
     if (response.status === 401 || response.status === 403) {
-      const isPublicEndpoint = endpoint.match(/^\/(products|categories|home|public|promotions|auth|upload\/image)/)
+      const isPublicEndpoint = endpoint.match(/^\/(products|categories|home|public|promotions|auth|upload\/image|banners|shipping\/(methods|calculate))/)
       const message =
         response.status === 401
           ? 'Unauthorized - Token expired'
           : 'Forbidden - Vui lòng đăng nhập'
-      if (!isPublicEndpoint && hasAuthToken) {
-        clearAuthState()
-        throw new ApiError(message, response.status, { redirect: true })
+
+      // Guest user (no token) hits an auth-required endpoint while browsing public pages
+      // (e.g. wishlist check, notifications badge, cart count). Don't throw — return a
+      // soft failure so the page keeps rendering.
+      if (!hasAuthToken) {
+        return {
+          success: false,
+          message,
+          data: null as any,
+        }
       }
-      if (hasAuthToken) {
-        clearAuthState()
+
+      // Token exists but is invalid/expired → clear and (optionally) redirect.
+      clearAuthState()
+      if (!isPublicEndpoint) {
+        throw new ApiError(message, response.status, { redirect: true })
       }
       throw new ApiError(message, response.status, { redirect: false })
     }

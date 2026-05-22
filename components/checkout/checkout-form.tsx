@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { getProvinces, getWardsByProvinceName, type Province, type Ward } from "@/lib/data/vietnam-addresses"
 
 interface CheckoutFormProps {
+  initialAddresses?: UserAddress[]
   selectedAddressId?: string
   onAddressChange?: (addressId: string) => void
   paymentMethod?: string
@@ -25,6 +26,7 @@ interface CheckoutFormProps {
 }
 
 export function CheckoutForm({
+  initialAddresses = [],
   selectedAddressId: externalSelectedAddressId,
   onAddressChange,
   paymentMethod: externalPaymentMethod,
@@ -35,7 +37,7 @@ export function CheckoutForm({
   const { isAuthenticated } = useAuth()
   const router = useRouter()
   const [paymentMethod, setPaymentMethod] = useState(externalPaymentMethod || "cod")
-  const [addresses, setAddresses] = useState<UserAddress[]>([])
+  const [addresses, setAddresses] = useState<UserAddress[]>(initialAddresses)
   const [selectedAddressId, setSelectedAddressId] = useState<string>(externalSelectedAddressId || "")
   const [provinces] = useState<Province[]>(getProvinces())
   const [selectedProvince, setSelectedProvince] = useState<string>("")
@@ -91,46 +93,17 @@ export function CheckoutForm({
   }
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login')
-      return
-    }
+    if (!isAuthenticated) return
 
-    const fetchAddresses = async () => {
-      try {
-        const response = await userApi.getAddresses()
-        if (response.success && response.data) {
-          setAddresses(response.data)
-          if (response.data.length > 0) {
-            const defaultAddressId = response.data[0].id
-            setSelectedAddressId(defaultAddressId)
-            onAddressChange?.(defaultAddressId)
-            const defaultAddress = response.data[0]
-            const provinceName = defaultAddress.province || defaultAddress.city || ""
-            setSelectedProvince(provinceName)
-            const wards = getWardsByProvinceName(provinceName)
-            setAvailableWards(wards)
-            setFormData({
-              fullName: defaultAddress.fullName,
-              phone: defaultAddress.phone,
-              email: defaultAddress.email || "",
-              province: provinceName,
-              ward: defaultAddress.ward,
-              address: defaultAddress.address || defaultAddress.street || "",
-              note: externalNote || "",
-            })
-          } else {
-            setUseNewAddress(true)
-          }
-        }
-      } catch (error) {
-        console.error('Failed to fetch addresses:', error)
-        setUseNewAddress(true)
+    if (addresses.length > 0) {
+      if (!selectedAddressId) {
+        const defaultAddress = addresses.find(a => a.isDefault) || addresses[0]
+        handleAddressChange(defaultAddress.id)
       }
+    } else {
+      setUseNewAddress(true)
     }
-
-    fetchAddresses()
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, addresses])
 
   const handleAddressChange = (addressId: string) => {
     setSelectedAddressId(addressId)

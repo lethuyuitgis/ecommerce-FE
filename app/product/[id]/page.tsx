@@ -6,6 +6,8 @@ import { RelatedProducts } from "@/components/product/related-products"
 import { notFound } from "next/navigation"
 import { serverProductsApi, serverReviewsApi, serverWishlistApi, serverOrdersApi } from "@/lib/api/server"
 import { cookies, headers } from "next/headers"
+import { Product } from "@/lib/api/products"
+import { PurchaseStatus } from "@/lib/api/reviews"
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
   const resolvedParams = params instanceof Promise ? await params : params
@@ -27,11 +29,13 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   
   const product = productResponse.data
   const reviews = reviewsResponse.success && reviewsResponse.data ? reviewsResponse.data.content : []
-  const relatedProducts = relatedProductsResponse.success && relatedProductsResponse.data 
-    ? relatedProductsResponse.data.content.filter(p => p.id !== product.id).slice(0, 6)
+  const relatedProducts = (relatedProductsResponse.success && relatedProductsResponse.data) 
+    ? relatedProductsResponse.data.content.filter((p: Product) => p.id !== product.id).slice(0, 6)
     : []
   const inWishlist = wishlistResponse.success && wishlistResponse.data === true
-  const purchaseStatus = purchaseResponse.success && purchaseResponse.data ? purchaseResponse.data : { hasPurchased: false }
+  const purchaseStatus: PurchaseStatus = purchaseResponse.success 
+    ? (purchaseResponse.data as PurchaseStatus)
+    : { hasPurchased: false, orderItemId: undefined, orderId: undefined, orderNumber: undefined }
   
   // Debug logging (remove in production)
   if (process.env.NODE_ENV === 'development') {
@@ -46,24 +50,21 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
   // Transform API product to component format
   const transformedProduct = {
+    ...product,
     id: product.id,
     name: product.name,
     price: product.price,
-    originalPrice: product.comparePrice,
-    image: product.primaryImage || product.images?.[0] || '/placeholder.svg',
+    comparePrice: product.comparePrice, // Changed from originalPrice to comparePrice to match product
+    image: product.primaryImage || product.images?.[0] || '/placeholder.svg', // Kept this specific image field
     images: product.images || [product.primaryImage || '/placeholder.svg'].filter(Boolean),
     rating: product.rating || 0,
-    sold: product.totalSold || 0,
+    totalSold: product.totalSold || 0,
     totalReviews: product.totalReviews || 0,
-    category: product.categoryName,
+    categoryName: product.categoryName, // Changed from category to categoryName to match product
     quantity: product.quantity || 0,
+    status: product.status || 'ACTIVE', // Added status field
+    productVariantDtos: product.productVariantDtos || [],
   }
-
-  // Extract variants from product
-  const variants = product.variants ? {
-    sizes: Array.isArray(product.variants.sizes) ? product.variants.sizes : [],
-    colors: Array.isArray(product.variants.colors) ? product.variants.colors : [],
-  } : undefined
 
   return (
     <div className="min-h-screen">
@@ -82,7 +83,6 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
           {/* Product Detail */}
           <ProductDetail 
             product={transformedProduct} 
-            variants={variants}
             sellerId={product.sellerId}
             sellerName={product.sellerName}
             initialInWishlist={inWishlist} 

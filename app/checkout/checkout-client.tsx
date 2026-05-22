@@ -126,6 +126,7 @@ export function CheckoutClient({ cartItems, addresses: initialAddresses }: Check
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <CheckoutForm
+            initialAddresses={initialAddresses}
             selectedAddressId={selectedAddressId}
             onAddressChange={setSelectedAddressId}
             paymentMethod={paymentMethod}

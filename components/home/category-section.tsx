@@ -6,14 +6,24 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { categoriesApi, Category } from "@/lib/api/categories"
 
-export function CategorySection() {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
+interface CategorySectionProps {
+  initialCategories?: Category[]
+}
+
+export function CategorySection({ initialCategories = [] }: CategorySectionProps) {
+  const [categories, setCategories] = useState<Category[]>(initialCategories)
+  const [loading, setLoading] = useState(initialCategories.length === 0)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    // Only fetch if we don't have initial data
+    if (initialCategories.length > 0) {
+      setLoading(false)
+      return
+    }
+
     const fetchCategories = async () => {
       try {
         const response = await categoriesApi.getAll()

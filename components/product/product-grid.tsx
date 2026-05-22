@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { ProductCard } from "@/components/product/product-card"
 import { useProductsByCategory } from "@/hooks/useProducts"
 import { Product } from "@/lib/api/products"
-import { getImageUrl } from "@/lib/utils/image"
 
 interface ProductGridProps {
   category: string
@@ -32,26 +31,6 @@ export function ProductGrid({ category, filters }: ProductGridProps) {
     setPage(0)
   }, [JSON.stringify(filterParams)])
 
-  // Transform API product to component product format
-  const transformProduct = (product: Product) => {
-    if (!product || !product.id) {
-      console.error('Invalid product:', product)
-      return null
-    }
-    return {
-      id: product.id,
-      name: product.name || 'Sản phẩm không có tên',
-      price: product.price || 0,
-      originalPrice: product.comparePrice || undefined,
-      image: getImageUrl(product.primaryImage || product.images?.[0]),
-      rating: product.rating || 0,
-      sold: product.totalSold || 0,
-      discount: product.comparePrice && product.price 
-        ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) 
-        : undefined,
-      category: product.categoryName || '',
-    }
-  }
 
   // Show loading only if loading AND no products yet
   if (loading && (!products || products.length === 0)) {
@@ -103,15 +82,10 @@ export function ProductGrid({ category, filters }: ProductGridProps) {
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {products
-              .filter((product) => product && product.id) // Filter out invalid products
-              .map((product) => {
-                const transformed = transformProduct(product)
-                return transformed ? (
-                  <ProductCard key={product.id} product={transformed} />
-                ) : null
-              })
-              .filter(Boolean) // Remove null entries
-            }
+              .filter((product) => product && product.id)
+              .map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
           </div>
 
           {/* Pagination */}

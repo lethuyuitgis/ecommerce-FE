@@ -33,6 +33,13 @@ export interface Order {
   paymentMethod: string
   notes?: string
   customerNotes?: string
+  recipientName?: string
+  recipientPhone?: string
+  recipientEmail?: string
+  recipientAddress?: string
+  recipientProvince?: string
+  recipientDistrict?: string
+  recipientWard?: string
   createdAt: string
   items: OrderItem[]
 }

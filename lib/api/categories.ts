@@ -12,6 +12,8 @@ export interface Category {
   isActive?: boolean
   children?: Category[]
   subcategories?: string[]
+  fullPath?: string
+  productCount?: number
 }
 
 export const categoriesApi = {

@@ -81,8 +81,6 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
         const response = await ordersApi.getOrderById(orderId)
         if (response.success && response.data) {
           setOrder(response.data)
-          // TODO: Fetch shipping address from addressId if available
-          // For now, we'll construct from order data
         } else {
           toast.error("Không tìm thấy đơn hàng")
           router.push("/orders")
@@ -225,11 +223,21 @@ export function OrderDetail({ orderId }: OrderDetailProps) {
               <h3 className="font-semibold text-foreground">Địa Chỉ Nhận Hàng</h3>
             </div>
             <div className="space-y-2 text-sm">
-              <p className="font-medium text-foreground">{order.customerName}</p>
-              {/* TODO: Fetch and display full shipping address from addressId */}
+              <p className="font-medium text-foreground">
+                {order.recipientName || order.customerName}
+              </p>
+              {order.recipientPhone && (
+                <p className="text-muted-foreground">{order.recipientPhone}</p>
+              )}
               <p className="text-muted-foreground">
-                {/* Address will be fetched separately if addressId is available */}
-                Địa chỉ giao hàng
+                {[
+                  order.recipientAddress,
+                  order.recipientWard,
+                  order.recipientDistrict,
+                  order.recipientProvince,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || "Chưa có địa chỉ giao hàng"}
               </p>
             </div>
           </div>

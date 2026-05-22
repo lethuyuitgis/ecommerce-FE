@@ -3,44 +3,17 @@
 import Link from "next/link"
 import { HeaderUserMenu } from "@/components/common/header-user-menu"
 import { useAuth } from "@/contexts/AuthContext"
+import { useCart } from "@/contexts/CartContext"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { MessageCircle, Search, ShoppingCart } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { cartApi } from "@/lib/api/cart"
 
 export function HeaderClient() {
   const { user, isAuthenticated } = useAuth()
-  const [cartCount, setCartCount] = useState(0)
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setCartCount(0)
-      return
-    }
-
-    let isMounted = true
-    const loadCart = async () => {
-      try {
-        const response = await cartApi.getCart()
-        if (!isMounted) return
-        if (response.success && Array.isArray(response.data)) {
-          const count = response.data.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
-          setCartCount(count)
-        }
-      } catch (error) {
-        if (process.env.NODE_ENV === "development") {
-          console.error("Error loading cart:", error)
-        }
-      }
-    }
-    loadCart()
-
-    return () => {
-      isMounted = false
-    }
-  }, [isAuthenticated])
+  const { totalItems } = useCart()
 
   const role = (user?.userType || "").toUpperCase()
 
@@ -135,9 +108,9 @@ export function HeaderClient() {
             <Link href="/cart" prefetch={false}>
               <Button variant="ghost" size="icon" className="relative text-primary-foreground hover:bg-primary-foreground/20">
                 <ShoppingCart className="h-6 w-6" />
-                {cartCount > 0 && (
+                {totalItems > 0 && (
                   <Badge className="absolute -right-1 -top-1 h-5 min-w-5 rounded-full bg-white px-1 text-xs text-primary">
-                    {cartCount}
+                    {totalItems}
                   </Badge>
                 )}
               </Button>

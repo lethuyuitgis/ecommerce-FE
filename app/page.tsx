@@ -1,43 +1,40 @@
-import { lazy, Suspense } from "react"
+import { Suspense } from "react"
 import { Header } from "@/components/common/header"
 import { Footer } from "@/components/common/footer"
 import { ProductCard } from "@/components/product/product-card"
-import { serverProductsApi } from "@/lib/api/server"
+import { serverProductsApi, serverCategoriesApi } from "@/lib/api/server"
 import { Product } from "@/lib/api/products"
-
-// Lazy load heavy components
-const CategorySection = lazy(() => import("@/components/home/category-section").then(m => ({ default: m.CategorySection })))
-const FlashSaleSection = lazy(() => import("@/components/home/flash-sale-section").then(m => ({ default: m.FlashSaleSection })))
-const BannerCarousel = lazy(() => import("@/components/home/banner-carousel").then(m => ({ default: m.BannerCarousel })))
+import { CategorySection } from "@/components/home/category-section"
+import { FlashSaleSection } from "@/components/home/flash-sale-section"
+import { BannerCarousel } from "@/components/home/banner-carousel"
 
 export default async function HomePage() {
-  // Fetch featured products on server
+  // Parallel fetch on server for speed
+  const [featuredRes, categoriesRes, flashSaleRes] = await Promise.all([
+    serverProductsApi.getFeatured(0, 24),
+    serverCategoriesApi.getAll(),
+    serverProductsApi.getFlashSales(0, 24)
+  ])
+
   let products: Product[] = []
-  try {
-    const featuredResponse = await serverProductsApi.getFeatured()
-    // Backend returns ProductPage with content array
-    if (featuredResponse.success && featuredResponse.data) {
-      products = Array.isArray(featuredResponse.data) 
-        ? featuredResponse.data 
-        : (featuredResponse.data.content || [])
-    }
-  } catch (error) {
-    console.error('Error fetching featured products:', error)
-    // Continue with empty array if fetch fails
+  if (featuredRes.success && featuredRes.data) {
+    products = Array.isArray(featuredRes.data) 
+      ? featuredRes.data 
+      : ((featuredRes.data as any).content || [])
   }
 
-  // Transform API product to component product format
-  const transformProduct = (product: Product) => ({
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    originalPrice: product.comparePrice,
-    image: product.primaryImage || product.images?.[0] || '/placeholder.svg',
-    rating: product.rating || 0,
-    sold: product.totalSold || 0,
-    discount: product.comparePrice ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : undefined,
-    category: product.categoryName,
-  })
+  // Fallback to all products if no featured products
+  if (products.length === 0) {
+    const allRes = await serverProductsApi.getAll(0, 24)
+    if (allRes.success && allRes.data) {
+      products = Array.isArray(allRes.data) ? allRes.data : (allRes.data.content || [])
+    }
+  }
+
+  const initialCategories = categoriesRes.success ? (categoriesRes.data || []) : []
+  const initialFlashSaleProducts = flashSaleRes.success && flashSaleRes.data 
+    ? (Array.isArray(flashSaleRes.data) ? flashSaleRes.data : ((flashSaleRes.data as any).content || []))
+    : []
 
   return (
     <div className="min-h-screen">
@@ -50,12 +47,12 @@ export default async function HomePage() {
 
         {/* Categories */}
         <Suspense fallback={<div className="h-32 bg-muted animate-pulse" />}>
-          <CategorySection />
+          <CategorySection initialCategories={initialCategories} />
         </Suspense>
 
         {/* Flash Sale */}
         <Suspense fallback={<div className="h-64 bg-muted animate-pulse" />}>
-          <FlashSaleSection />
+          <FlashSaleSection initialProducts={initialFlashSaleProducts} />
         </Suspense>
 
         {/* Featured Products */}
@@ -64,12 +61,12 @@ export default async function HomePage() {
             <h2 className="text-2xl font-bold text-foreground">GỢI Ý HÔM NAY</h2>
           </div>
           {products.length === 0 ? (
-            <div className="text-center py-8">Không có sản phẩm nổi bật</div>
+            <div className="text-center py-8">Không có sản phẩm nào để hiển thị</div>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                 {products.map((product) => (
-                  <ProductCard key={product.id} product={transformProduct(product)} />
+                  <ProductCard key={product.id} product={product} />
                 ))}
               </div>
               {/* Load More */}

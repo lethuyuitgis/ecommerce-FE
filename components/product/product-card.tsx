@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import type { Product } from "@/lib/products"
+import Image from "next/image"
+import type { Product } from "@/lib/api/products"
 import { useCart } from "@/hooks/useCart"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
@@ -49,24 +50,29 @@ export function ProductCard({ product }: ProductCardProps) {
     }
   }
 
+  const productImage = product.primaryImage || product.imageUrl || (product.images && product.images.length > 0 ? product.images[0] : null) || (product as any).image || '/placeholder.svg'
+  const hasDiscount = product.comparePrice && product.comparePrice > product.price
+  const discountPercent = hasDiscount 
+    ? Math.round(((product.comparePrice! - product.price) / product.comparePrice!) * 100) 
+    : 0
+
   return (
     <Link href={`/product/${product.id}`} prefetch={false}>
       <Card
-        className="group relative overflow-hidden transition-shadow hover:shadow-lg !py-0"
+        className="group relative h-full overflow-hidden transition-shadow hover:shadow-lg !py-0"
         onMouseEnter={() => setShowAddButton(true)}
         onMouseLeave={() => setShowAddButton(false)}
       >
         <div className="relative aspect-square overflow-hidden bg-muted">
-          <img
-            src={getImageUrl(product.image)}
+          <Image
+            src={getImageUrl(productImage)}
             alt={product.name}
-            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            fill
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+            className="object-cover transition-transform group-hover:scale-105"
           />
-          {product.discount && (
-            <Badge className="absolute left-2 top-2 bg-secondary text-secondary-foreground">-{product.discount}%</Badge>
-          )}
-          {product.freeShip && (
-            <Badge className="absolute right-2 top-2 bg-primary text-primary-foreground">Freeship</Badge>
+          {hasDiscount && (
+            <Badge className="absolute left-2 top-2 bg-secondary text-secondary-foreground">-{discountPercent}%</Badge>
           )}
           {/* Quick Add Button - Show on hover */}
           <div
@@ -95,39 +101,27 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         </div>
         <CardContent className="p-3">
-          <h3 className="mb-2 line-clamp-2 text-sm leading-tight text-foreground">{product.name}</h3>
+          <h3 className="mb-2 line-clamp-2 text-sm font-medium leading-tight text-foreground transition-colors group-hover:text-primary">
+            {product.name}
+          </h3>
           <div className="mb-2 flex items-baseline gap-2">
-            {/* Hiển thị giá mới (giá đã giảm) */}
-            <span className="text-lg font-semibold text-primary">
+            <span className="text-lg font-bold text-primary">
               ₫{product.price.toLocaleString("vi-VN")}
             </span>
-            {/* Hiển thị giá cũ (comparePrice hoặc originalPrice) nếu có */}
-            {(product.originalPrice || product.comparePrice) && (
+            {hasDiscount && (
               <span className="text-xs text-muted-foreground line-through">
-                ₫{(product.originalPrice || product.comparePrice || 0).toLocaleString("vi-VN")}
-              </span>
-            )}
-            {/* Hiển thị % giảm giá nếu có */}
-            {(product.originalPrice || product.comparePrice) && product.price && (
-              <span className="text-xs font-medium text-red-500">
-                -{Math.round(((product.originalPrice || product.comparePrice || product.price) - product.price) / (product.originalPrice || product.comparePrice || product.price) * 100)}%
+                ₫{product.comparePrice!.toLocaleString("vi-VN")}
               </span>
             )}
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-1">
               <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-              <span>{product.rating}</span>
+              <span>{product.rating || 0}</span>
               <span className="mx-1">|</span>
-              <span>Đã bán {product.sold}</span>
+              <span>Đã bán {product.totalSold || 0}</span>
             </div>
           </div>
-          {product.location && (
-            <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="h-3 w-3" />
-              <span>{product.location}</span>
-            </div>
-          )}
         </CardContent>
       </Card>
     </Link>

@@ -87,7 +87,7 @@ export const shipperApi = {
   getMyShipments: async (
     status?: string
   ): Promise<ApiResponse<AdminShipmentDTO[]>> => {
-    let url = `/shipments/my-shipments`
+    let url = `/shipper/shipments`
     if (status && status !== 'all') {
       url += `?status=${status}`
     }
@@ -98,76 +98,23 @@ export const shipperApi = {
   updateShipmentStatus: async (
     shipmentId: string,
     status: string
-  ): Promise<ApiResponse<AdminShipmentDTO>> => {
-    return apiClient<AdminShipmentDTO>(`/shipments/${shipmentId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
+  ): Promise<ApiResponse<string>> => {
+    return apiClient<string>(`/shipper/shipments/${shipmentId}/status?status=${status}`, {
+      method: 'PUT',
     })
   },
 
-  // Lấy danh sách đơn hàng cần vận chuyển (deprecated - dùng getMyShipments thay thế)
+  // Lấy danh sách đơn hàng cần vận chuyển
   getOrdersToShip: async (
     page: number = 0,
     size: number = 20,
     status?: string
   ): Promise<ApiResponse<OrderPage>> => {
-    // Dùng endpoint orders thông thường, filter sẽ được xử lý ở frontend
-    let url = `/orders?page=${page}&size=${size * 2}` // Lấy nhiều hơn để filter
-    const response = await apiClient<OrderPage>(url)
-    
-    if (response.success && response.data) {
-      // Filter orders có shipping status phù hợp
-      let filteredOrders = response.data.content || []
-      
-      // Filter theo shipping status nếu có
-      if (status && status !== 'all') {
-        const statusMap: Record<string, string[]> = {
-          'pending': ['PENDING', 'pending'],
-          'picked_up': ['PICKED_UP', 'picked_up', 'PICKED UP'],
-          'in_transit': ['IN_TRANSIT', 'in_transit', 'IN TRANSIT'],
-          'out_for_delivery': ['OUT_FOR_DELIVERY', 'out_for_delivery', 'OUT FOR DELIVERY'],
-          'delivered': ['DELIVERED', 'delivered'],
-          'failed': ['FAILED', 'failed'],
-        }
-        
-        const targetStatuses = statusMap[status.toLowerCase()] || [status]
-        filteredOrders = filteredOrders.filter(order => {
-          const shippingStatus = (order.shippingStatus || order.status || '').toUpperCase()
-          return targetStatuses.some(s => shippingStatus.includes(s.toUpperCase()))
-        })
-      } else {
-        // Chỉ lấy orders có shipping status (không phải cancelled)
-        filteredOrders = filteredOrders.filter(order => {
-          const shippingStatus = (order.shippingStatus || order.status || '').toUpperCase()
-          return !shippingStatus.includes('CANCELLED') && 
-                 (shippingStatus.includes('PENDING') || 
-                  shippingStatus.includes('PICKED') || 
-                  shippingStatus.includes('TRANSIT') || 
-                  shippingStatus.includes('DELIVERY') || 
-                  shippingStatus.includes('DELIVERED') ||
-                  shippingStatus.includes('FAILED'))
-        })
-      }
-      
-      // Pagination
-      const start = page * size
-      const end = start + size
-      const paginatedOrders = filteredOrders.slice(start, end)
-      
-      return {
-        ...response,
-        data: {
-          ...response.data,
-          content: paginatedOrders,
-          totalElements: filteredOrders.length,
-          totalPages: Math.ceil(filteredOrders.length / size),
-          number: page,
-          size: size,
-        }
-      }
+    let url = `/shipper/orders?page=${page}&size=${size}`
+    if (status && status !== 'all') {
+      url += `&status=${status}`
     }
-    
-    return response
+    return apiClient<OrderPage>(url)
   },
 
   // Lấy chi tiết đơn hàng
@@ -206,13 +153,11 @@ export const shipperApi = {
     shipment: Shipment
     updates: TrackingUpdate[]
   }>> => {
-    // TODO: Backend cần tạo endpoint này
-    // Tạm thời trả về empty
-    return {
-      success: false,
-      message: 'Tracking endpoint not implemented yet',
-      data: null as any,
-    }
+    return apiClient<{ shipment: Shipment; updates: TrackingUpdate[] }>(
+      `/shipments/tracking/${encodeURIComponent(trackingNumber)}`,
+      {},
+      true,
+    )
   },
 
   // Tìm kiếm đơn hàng

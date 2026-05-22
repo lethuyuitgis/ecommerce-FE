@@ -10,6 +10,8 @@ import { promotionsApi, Promotion } from "@/lib/api/promotions"
 import { vouchersApi, Voucher, ValidateVoucherResponse } from "@/lib/api/vouchers"
 import { toast } from "sonner"
 import { X, Tag, Check } from "lucide-react"
+import Image from "next/image"
+import { getImageUrl } from "@/lib/utils/image"
 import {
   Popover,
   PopoverContent,
@@ -144,8 +146,13 @@ export function CheckoutSummary({ onSubmit, loading = false, onVoucherChange }: 
           return (
             <div key={item.id} className="flex gap-3">
               <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded border">
-                <img src={item.productImage || "/placeholder.svg"} alt={item.productName} className="h-full w-full object-cover" />
-                <div className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                <Image 
+                  src={getImageUrl(item.productImage)} 
+                  alt={item.productName} 
+                  fill
+                  className="object-cover"
+                />
+                <div className="absolute -right-2 -top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-white text-xs font-medium">
                   {item.quantity}
                 </div>
               </div>

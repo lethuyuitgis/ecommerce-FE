@@ -1,317 +1,348 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { productsApi, Product, ProductPage } from '@/lib/api/products'
 import { apiCache } from '@/lib/api/cache'
 
-export function useProducts(page: number = 0, size: number = 20) {
+interface HookOptions {
+  enabled?: boolean
+}
+
+export function useProducts(page: number = 0, size: number = 20, options: HookOptions = {}) {
+  const enabled = options.enabled !== false
   const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<Error | null>(null)
   const [totalPages, setTotalPages] = useState(0)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
+    if (!enabled) {
+      setLoading(false)
+      return
     }
+
+    // Create a new AbortController for each request
+    abortControllerRef.current = new AbortController()
+    const signal = abortControllerRef.current.signal
 
     const fetchProducts = async () => {
       const cacheKey = `products:${page}:${size}`
-      
       try {
         setLoading(true)
         setError(null)
-        
+
         const response = await apiCache.get(
           cacheKey,
           () => productsApi.getAll(page, size),
-          2 * 60 * 1000 // 2 minutes cache
+          2 * 60 * 1000
         )
-        
+
+        if (signal.aborted) return
+
         if (response.success && response.data) {
           setProducts(response.data.content)
           setTotalPages(response.data.totalPages)
         }
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          setError(err as Error)
-        }
+        if (signal.aborted || err.name === 'AbortError') return
+        setError(err as Error)
       } finally {
-        setLoading(false)
+        if (!signal.aborted) setLoading(false)
       }
     }
 
     fetchProducts()
 
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+      abortControllerRef.current?.abort()
     }
-  }, [page, size])
+  }, [page, size, enabled])
 
   return { products, loading, error, totalPages }
 }
 
-export function useFeaturedProducts(page: number = 0, size: number = 20) {
+export function useFeaturedProducts(page: number = 0, size: number = 20, options: HookOptions = {}) {
+  const enabled = options.enabled !== false
   const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<Error | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
+    if (!enabled) {
+      setLoading(false)
+      return
     }
+
+    abortControllerRef.current = new AbortController()
+    const signal = abortControllerRef.current.signal
 
     const fetchProducts = async () => {
       const cacheKey = `featured:${page}:${size}`
-      
       try {
         setLoading(true)
         setError(null)
-        
+
         const response = await apiCache.get(
           cacheKey,
           () => productsApi.getFeatured(page, size),
-          3 * 60 * 1000 // 3 minutes cache for featured products
+          3 * 60 * 1000
         )
-        
+
+        if (signal.aborted) return
+
         if (response.success && response.data) {
           setProducts(response.data.content)
         }
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          setError(err as Error)
-        }
+        if (signal.aborted || err.name === 'AbortError') return
+        setError(err as Error)
       } finally {
-        setLoading(false)
+        if (!signal.aborted) setLoading(false)
       }
     }
 
     fetchProducts()
 
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+      abortControllerRef.current?.abort()
     }
-  }, [page, size])
+  }, [page, size, enabled])
 
   return { products, loading, error }
 }
 
-export function useProduct(id: string) {
-  const [product, setProduct] = useState<Product | null>(null)
-  const [loading, setLoading] = useState(true)
+export function useFlashSaleProducts(page: number = 0, size: number = 20, options: HookOptions = {}) {
+  const enabled = options.enabled !== false
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<Error | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  const fetchProduct = async (skipCache: boolean = false) => {
-    if (!id) return
-
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
+  useEffect(() => {
+    if (!enabled) {
+      setLoading(false)
+      return
     }
 
+    abortControllerRef.current = new AbortController()
+    const signal = abortControllerRef.current.signal
+
+    const fetchProducts = async () => {
+      const cacheKey = `flash-sale:${page}:${size}`
+      try {
+        setLoading(true)
+        setError(null)
+
+        const response = await apiCache.get(
+          cacheKey,
+          () => productsApi.getFlashSales(page, size),
+          1 * 60 * 1000
+        )
+
+        if (signal.aborted) return
+
+        if (response.success && response.data) {
+          setProducts(response.data.content)
+        }
+      } catch (err: any) {
+        if (signal.aborted || err.name === 'AbortError') return
+        setError(err as Error)
+      } finally {
+        if (!signal.aborted) setLoading(false)
+      }
+    }
+
+    fetchProducts()
+
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [page, size, enabled])
+
+  return { products, loading, error }
+}
+
+export function useProduct(id: string, options: HookOptions = {}) {
+  const enabled = options.enabled !== false
+  const [product, setProduct] = useState<Product | null>(null)
+  const [loading, setLoading] = useState(enabled)
+  const [error, setError] = useState<Error | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  const fetchProduct = useCallback(async (skipCache: boolean = false) => {
+    if (!id || !enabled) return
+
+    // Abort previous request
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = new AbortController()
+    const signal = abortControllerRef.current.signal
+
     const cacheKey = `product:${id}`
-    
     try {
       setLoading(true)
       setError(null)
-      
+
       if (skipCache) {
         apiCache.invalidate(cacheKey)
       }
-      
+
       const response = await apiCache.get(
         cacheKey,
         () => productsApi.getById(id),
-        5 * 60 * 1000 // 5 minutes cache for product details
+        5 * 60 * 1000
       )
-      
+
+      if (signal.aborted) return
+
       if (response.success && response.data) {
         setProduct(response.data)
       }
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        setError(err as Error)
-      }
+      if (signal.aborted || err.name === 'AbortError') return
+      setError(err as Error)
     } finally {
-      setLoading(false)
+      if (!signal.aborted) setLoading(false)
     }
-  }
+  }, [id, enabled])
 
   useEffect(() => {
-    fetchProduct()
-  }, [id])
+    if (enabled) {
+      fetchProduct()
+    } else {
+      setLoading(false)
+    }
+    return () => {
+      abortControllerRef.current?.abort()
+    }
+  }, [id, enabled, fetchProduct])
 
   return { product, loading, error, refreshProduct: () => fetchProduct(true) }
 }
 
 export function useProductsByCategory(
-  slug: string, 
-  page: number = 0, 
+  slug: string,
+  page: number = 0,
   size: number = 20,
   filters?: {
     minPrice?: number
     maxPrice?: number
     minRating?: number
     subcategory?: string
-  }
+  },
+  options: HookOptions = {}
 ) {
+  const enabled = options.enabled !== false
   const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState<Error | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  useEffect(() => {
-    if (!slug) return
+  // Stable json key for filters to avoid infinite re-renders
+  const filtersKey = JSON.stringify(filters ?? null)
 
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
+  useEffect(() => {
+    if (!slug || !enabled) {
+      if (!enabled) setLoading(false)
+      return
     }
 
+    abortControllerRef.current = new AbortController()
+    const signal = abortControllerRef.current.signal
+
     const fetchProducts = async () => {
-      // Include filters in cache key to ensure proper caching
-      const filtersKey = filters 
-        ? JSON.stringify({ minPrice: filters.minPrice, maxPrice: filters.maxPrice, minRating: filters.minRating, subcategory: filters.subcategory })
-        : ''
       const cacheKey = `category:${slug}:${page}:${size}:${filtersKey}`
-      
       try {
         setLoading(true)
-        setError(null) // Clear error at the start
-        setProducts([]) // Clear products at the start
-        
+        setError(null)
+
         const response = await apiCache.get(
           cacheKey,
           () => productsApi.getByCategory(slug, page, size, filters),
-          2 * 60 * 1000 // 2 minutes cache
+          2 * 60 * 1000
         )
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Category products response:', { slug, page, size, response })
-        }
-        
-        // Check if response is valid
-        if (!response) {
-          console.error('No response received')
-          setError(new Error('No response from server'))
-          setProducts([])
-          return
-        }
-        
-        if (response.success && response.data) {
-          // Handle ProductPage format
+
+        if (signal.aborted) return
+
+        if (response && response.success && response.data) {
           if (response.data.content && Array.isArray(response.data.content)) {
-            const productsList = response.data.content.filter((p: any) => p && p.id)
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Setting products:', productsList.length, 'products')
-            }
-            setProducts(productsList)
-            setError(null) // Clear error on success
+            setProducts(response.data.content)
           } else if (Array.isArray(response.data)) {
-            // Fallback: if data is directly an array
-            const productsList = response.data.filter((p: any) => p && p.id)
-            setProducts(productsList)
-            setError(null) // Clear error on success
-          } else {
-            console.error('Unexpected response format:', response.data)
-            setError(new Error('Unexpected response format from API'))
-            setProducts([])
+            setProducts(response.data)
           }
         } else {
-          const errorMsg = response?.message || response?.error || 'Failed to fetch products'
-          console.error('Failed to fetch category products:', { slug, response })
-          setError(new Error(errorMsg))
-          setProducts([])
+          setError(new Error(response?.message || 'Failed to fetch products'))
         }
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          console.error('Error fetching products by category:', err)
-          const errorMessage = err?.message || err?.error || 'Failed to fetch products'
-          setError(new Error(errorMessage))
-          setProducts([])
-        }
+        if (signal.aborted || err.name === 'AbortError') return
+        setError(err as Error)
       } finally {
-        setLoading(false)
+        if (!signal.aborted) setLoading(false)
       }
     }
 
     fetchProducts()
 
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+      abortControllerRef.current?.abort()
     }
-  }, [slug, page, size, JSON.stringify(filters)])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, page, size, filtersKey, enabled])
 
   return { products, loading, error }
 }
 
-export function useSearchProducts(keyword: string, page: number = 0, size: number = 20) {
+export function useSearchProducts(keyword: string, page: number = 0, size: number = 20, options: HookOptions = {}) {
+  const enabled = options.enabled !== false
   const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (!keyword) {
+    if (!keyword || !enabled) {
       setProducts([])
       setLoading(false)
       return
     }
 
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
+    const timeoutId = setTimeout(() => {
+      abortControllerRef.current?.abort()
+      abortControllerRef.current = new AbortController()
+      const signal = abortControllerRef.current.signal
 
-    const fetchProducts = async () => {
-      const cacheKey = `search:${keyword}:${page}:${size}`
-      
-      try {
-        setLoading(true)
-        setError(null)
-        
-        const response = await apiCache.get(
-          cacheKey,
-          () => productsApi.search(keyword, page, size),
-          1 * 60 * 1000 // 1 minute cache for search
-        )
-        
-        if (response.success && response.data) {
-          setProducts(response.data.content)
-        }
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
+      const fetchProducts = async () => {
+        const cacheKey = `search:${keyword}:${page}:${size}`
+        try {
+          setLoading(true)
+          setError(null)
+
+          const response = await apiCache.get(
+            cacheKey,
+            () => productsApi.search(keyword, page, size),
+            1 * 60 * 1000
+          )
+
+          if (signal.aborted) return
+
+          if (response.success && response.data) {
+            setProducts(response.data.content)
+          }
+        } catch (err: any) {
+          if (signal.aborted || err.name === 'AbortError') return
           setError(err as Error)
+        } finally {
+          if (!signal.aborted) setLoading(false)
         }
-      } finally {
-        setLoading(false)
       }
-    }
 
+      fetchProducts()
+    }, 300) // Debounce
 
-    const timeoutId = setTimeout(fetchProducts, 300) // Debounce
     return () => {
       clearTimeout(timeoutId)
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort()
-      }
+      abortControllerRef.current?.abort()
     }
-  }, [keyword, page, size])
+  }, [keyword, page, size, enabled])
 
   return { products, loading, error }
 }
-
-
-
-
-
-

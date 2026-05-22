@@ -12,6 +12,7 @@ import { ComplaintsTab } from '@/components/admin/tabs/complaints-tab'
 import { SystemTab } from '@/components/admin/tabs/system-tab'
 import { SettingsTab } from '@/components/admin/tabs/settings-tab'
 import { ApprovalsTab } from '@/components/admin/tabs/approvals-tab'
+import { BannersTab } from '@/components/admin/tabs/banners-tab'
 
 interface AdminTabsClientProps {
   users: AdminUser[]
@@ -53,6 +54,7 @@ export function AdminTabsClient({
         <TabsTrigger value="shipments">Shipments</TabsTrigger>
         <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
         <TabsTrigger value="complaints">Complaints</TabsTrigger>
+        <TabsTrigger value="banners">Banners</TabsTrigger>
         <TabsTrigger value="approvals">Phê duyệt</TabsTrigger>
         <TabsTrigger value="system">System</TabsTrigger>
         <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -80,6 +82,10 @@ export function AdminTabsClient({
 
       <TabsContent value="complaints" className="mt-4">
         <ComplaintsTab initialComplaints={complaints} />
+      </TabsContent>
+
+      <TabsContent value="banners" className="mt-4">
+        <BannersTab />
       </TabsContent>
 
       <TabsContent value="approvals" className="mt-4">

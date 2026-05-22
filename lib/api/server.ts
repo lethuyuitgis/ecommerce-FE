@@ -1,8 +1,13 @@
 // Server-side API client - only use in Server Components
 // This file should NOT have 'use client' directive
 import 'server-only'
+import { Product, ProductPage } from './products'
+import { Category } from './categories'
+import { ReviewPage } from './reviews'
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
+const BACKEND_URL = (typeof process !== 'undefined' && process.env.INTERNAL_API_URL) 
+  || process.env.NEXT_PUBLIC_API_URL 
+  || 'http://localhost:8080/api'
 
 async function getCookieStore(customCookies?: any) {
   if (customCookies) {
@@ -133,9 +138,9 @@ export async function serverFetch<T>(
     }
     
     const response = await fetch(url, {
+      cache: options?.method === 'GET' ? 'default' : 'no-store',
       ...options,
       headers: fetchHeaders,
-      cache: 'no-store', // Always fetch fresh data
     })
 
     if (!response.ok) {
@@ -173,7 +178,7 @@ export const serverProductsApi = {
       size: size.toString(),
     })
     if (categoryId) params.append('categoryId', categoryId)
-    return serverFetch(`/products?${params}`)
+    return serverFetch<ProductPage>(`/products?${params}`)
   },
 
   getFeatured: async (page = 0, size = 24) => {
@@ -181,7 +186,7 @@ export const serverProductsApi = {
       page: page.toString(),
       size: size.toString(),
     })
-    return serverFetch(`/products/featured?${params}`)
+    return serverFetch<ProductPage>(`/products/featured?${params}`)
   },
 
   getFlashSales: async (page = 0, size = 24) => {
@@ -189,11 +194,11 @@ export const serverProductsApi = {
       page: page.toString(),
       size: size.toString(),
     })
-    return serverFetch(`/products/flash-sales?${params}`)
+    return serverFetch<ProductPage>(`/products/flash-sales?${params}`)
   },
 
   getById: async (id: string) => {
-    return serverFetch(`/products/${id}`)
+    return serverFetch<Product>(`/products/${id}`)
   },
 
   search: async (
@@ -243,7 +248,7 @@ export const serverProductsApi = {
 // Category APIs
 export const serverCategoriesApi = {
   getAll: async () => {
-    return serverFetch('/categories')
+    return serverFetch<Category[]>('/categories')
   },
 
   getBySlug: async (slug: string) => {
@@ -363,7 +368,7 @@ export const serverReviewsApi = {
       page: page.toString(),
       size: size.toString(),
     })
-    return serverFetch(`/reviews/product/${productId}?${params}`)
+    return serverFetch<ReviewPage>(`/reviews/product/${productId}?${params}`)
   },
 }
 
@@ -392,7 +397,8 @@ export const serverMessagesApi = {
 // Shipper APIs
 export const serverShipperApi = {
   getMyShipments: async (status?: string, cookies?: any, headers?: any) => {
-    let url = `/shipments/my-shipments`
+    // Maps correctly to /api/shipper/shipments in ShipperController
+    let url = `/shipper/shipments`
     if (status && status !== 'all') {
       url += `?status=${status}`
     }
@@ -400,16 +406,25 @@ export const serverShipperApi = {
   },
   
   getOrdersToShip: async (page = 0, size = 20, status?: string, cookies?: any, headers?: any) => {
-    // Fetch orders and filter on server side
+    // Maps to /api/shipper/orders in ShipperController
     const params = new URLSearchParams({
       page: page.toString(),
-      size: (size * 2).toString(), // Fetch more to filter
+      size: size.toString(),
     })
-    return serverFetch(`/orders?${params}`, {}, cookies, headers)
+    if (status && status !== 'all') {
+      params.set('status', status)
+    }
+    return serverFetch(`/shipper/orders?${params}`, {}, cookies, headers)
   },
   
   getOrderDetail: async (orderId: string, cookies?: any, headers?: any) => {
     return serverFetch(`/orders/${orderId}`, {}, cookies, headers)
+  },
+
+  updateShipmentStatus: async (shipmentId: string, status: string, cookies?: any, headers?: any) => {
+    return serverFetch(`/shipper/shipments/${shipmentId}/status?status=${status}`, {
+      method: 'PUT',
+    }, cookies, headers)
   },
 }
 

@@ -25,6 +25,7 @@ export interface Product {
   categoryName?: string
   sellerId?: string
   sellerName?: string
+  shippingMethodId?: string
   // Image fields - support multiple formats from backend
   images?: string[]
   primaryImage?: string
@@ -46,6 +47,15 @@ export interface Product {
     colors?: string[]
     [key: string]: any
   }
+  productVariantDtos?: Array<{
+    id: string
+    variantName: string
+    variantSku?: string
+    variantPrice?: number
+    variantQuantity: number
+    variantImage?: string
+    attributes?: string // JSON string
+  }>
 }
 
 export interface ProductPage {
@@ -63,6 +73,10 @@ export const productsApi = {
 
   getFeatured: async (page: number = 0, size: number = 20): Promise<ApiResponse<ProductPage>> => {
     return apiClient<ProductPage>(`/products/featured?page=${page}&size=${size}`)
+  },
+
+  getFlashSales: async (page: number = 0, size: number = 20): Promise<ApiResponse<ProductPage>> => {
+    return apiClient<ProductPage>(`/products/flash-sales?page=${page}&size=${size}`)
   },
 
   getById: async (id: string): Promise<ApiResponse<Product>> => {

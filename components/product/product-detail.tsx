@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, startTransition } from "react"
+import { useState, useEffect, startTransition, useMemo } from "react"
 import { Star, Plus, Minus, ShoppingCart, Heart, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -9,10 +9,11 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useWishlist } from "@/hooks/useWishlist"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import type { Product } from "@/lib/products"
+import type { Product } from "@/lib/api/products"
 import { ChatWithShopButton } from "./chat-with-shop-button"
 import { useRouteLoading } from "@/contexts/RouteLoadingContext"
 import { getImageUrl } from "@/lib/utils/image"
+import Image from "next/image"
 
 interface ProductDetailProps {
   product: Product
@@ -38,7 +39,18 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
   const { startNavigation } = useRouteLoading()
   const [inWishlist, setInWishlist] = useState(initialInWishlist)
 
-  // Initial state is set from server-side fetch, only update when user toggles
+  // Find matching variant
+  const selectedVariant = useMemo(() => {
+    if (!product.productVariantDtos) return null
+    return product.productVariantDtos.find(v => {
+      // Logic to match variant by name or attributes
+      // Simple heuristic: check if name contains size and color
+      const name = v.variantName.toLowerCase()
+      const hasSize = selectedSize ? name.includes(selectedSize.toLowerCase()) : true
+      const hasColor = selectedColor ? name.includes(selectedColor.toLowerCase()) : true
+      return hasSize && hasColor
+    }) || null
+  }, [product.productVariantDtos, selectedSize, selectedColor])
 
   // Initialize selected size and color from variants
   useEffect(() => {
@@ -50,12 +62,17 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
     }
   }, [variants, selectedSize, selectedColor])
 
-  const images = product.images && product.images.length > 0 
-    ? product.images 
-    : [product.image].filter(Boolean)
+  const images = product.productImages && product.productImages.length > 0
+    ? product.productImages.map(img => img.url || img.imageUrl || img.image_url).filter(Boolean) as string[]
+    : (product.images && product.images.length > 0 
+        ? product.images 
+        : [product.primaryImage || product.imageUrl || '/placeholder.svg'].filter(Boolean) as string[])
   
   const sizes = variants?.sizes || []
   const colors = variants?.colors || []
+
+  const currentPrice = selectedVariant?.variantPrice || product.price
+  const currentQuantity = selectedVariant ? selectedVariant.variantQuantity : (product.quantity || 0)
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
@@ -77,12 +94,11 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
     }
 
     try {
-      await addToCart(product.id, null, quantity, {
+      await addToCart(product.id, selectedVariant?.id || null, quantity, {
         size: selectedSize || undefined,
         color: selectedColor || undefined,
       })
       toast.success("Đã thêm vào giỏ hàng!")
-      // Refresh product to update quantity
       onProductUpdate?.()
     } catch (error: any) {
       toast.error(error.message || "Thêm vào giỏ hàng thất bại")
@@ -109,11 +125,10 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
     }
 
     try {
-      await addToCart(product.id, null, quantity, {
+      await addToCart(product.id, selectedVariant?.id || null, quantity, {
         size: selectedSize || undefined,
         color: selectedColor || undefined,
       })
-      // Refresh product to update quantity before navigating
       onProductUpdate?.()
       startNavigation("/checkout")
       startTransition(() => {
@@ -129,7 +144,8 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
   }
 
   const increaseQuantity = () => {
-    if (quantity < 99) setQuantity(quantity + 1)
+    if (quantity < currentQuantity) setQuantity(quantity + 1)
+    else toast.warning("Đã đạt số lượng tối đa có sẵn")
   }
 
   return (
@@ -138,29 +154,34 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
         {/* Images */}
         <div>
           <div className="relative mb-4 aspect-square overflow-hidden rounded-lg bg-muted">
-            <img
+            <Image
               src={getImageUrl(images[selectedImage])}
               alt={product.name}
-              className="h-full w-full object-cover"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+              priority
             />
-            {product.discount && (
-              <Badge className="absolute left-4 top-4 bg-secondary text-secondary-foreground">
-                -{product.discount}%
+            {product.flashSaleEnabled && (
+              <Badge className="absolute left-4 top-4 bg-red-500 text-white">
+                FLASH SALE
               </Badge>
             )}
           </div>
           <div className="grid grid-cols-5 gap-2">
-            {images.map((image, index) => (
+            {images.slice(0, 5).map((image, index) => (
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
-                className={`aspect-square overflow-hidden rounded-lg border-2 ${selectedImage === index ? "border-primary" : "border-transparent"
+                className={`relative aspect-square overflow-hidden rounded-lg border-2 ${selectedImage === index ? "border-primary" : "border-transparent"
                   }`}
               >
-                <img
+                <Image
                   src={getImageUrl(image)}
                   alt={`${product.name} ${index + 1}`}
-                  className="h-full w-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="100px"
                 />
               </button>
             ))}
@@ -173,7 +194,7 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
             <Badge variant="outline" className="text-primary">
               Yêu thích
             </Badge>
-            <span className="text-sm text-muted-foreground">Đã bán {product.sold}</span>
+            <span className="text-sm text-muted-foreground">Đã bán {product.totalSold || 0}</span>
           </div>
           <h1 className="mb-4 text-2xl font-bold text-foreground">{product.name}</h1>
 
@@ -188,35 +209,23 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
               <span className="text-lg font-semibold">{product.totalReviews || 0}</span>
               <span className="ml-1 text-sm text-muted-foreground">Đánh Giá</span>
             </div>
-            <div className="h-6 w-px bg-border" />
-            <div>
-              <span className="text-lg font-semibold">{product.sold || 0}</span>
-              <span className="ml-1 text-sm text-muted-foreground">Đã Bán</span>
-            </div>
           </div>
 
           {/* Price */}
           <div className="mb-6 rounded-lg bg-muted/50 p-4">
             <div className="flex items-baseline gap-3 flex-wrap">
-              {/* Hiển thị giá mới (giá đã giảm) */}
               <span className="text-3xl font-bold text-primary">
-                ₫{product.price.toLocaleString("vi-VN")}
+                ₫{currentPrice.toLocaleString("vi-VN")}
               </span>
-              {/* Hiển thị giá cũ (comparePrice hoặc originalPrice) nếu có */}
-              {(product.originalPrice || product.comparePrice) && (
+              {product.comparePrice && product.comparePrice > currentPrice && (
                 <span className="text-lg text-muted-foreground line-through">
-                  ₫{(product.originalPrice || product.comparePrice || 0).toLocaleString("vi-VN")}
+                  ₫{product.comparePrice.toLocaleString("vi-VN")}
                 </span>
               )}
-              {/* Hiển thị % giảm giá nếu có */}
-              {((product.originalPrice || product.comparePrice) && product.price) && (
+              {product.comparePrice && product.comparePrice > currentPrice && (
                 <Badge className="bg-red-500 text-white text-base px-3 py-1">
-                  -{Math.round(((product.originalPrice || product.comparePrice || product.price) - product.price) / (product.originalPrice || product.comparePrice || product.price) * 100)}%
+                  -{Math.round(((product.comparePrice - currentPrice) / product.comparePrice) * 100)}%
                 </Badge>
-              )}
-              {/* Fallback: hiển thị discount nếu có nhưng không có originalPrice/comparePrice */}
-              {product.discount && !product.originalPrice && !product.comparePrice && (
-                <Badge className="bg-secondary text-secondary-foreground">-{product.discount}%</Badge>
               )}
             </div>
           </div>
@@ -279,7 +288,7 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
                   value={quantity}
                   onChange={(e) => {
                     const val = Number.parseInt(e.target.value) || 1
-                    setQuantity(Math.max(1, Math.min(99, val)))
+                    setQuantity(Math.max(1, Math.min(currentQuantity, val)))
                   }}
                   className="h-10 w-16 border-0 text-center focus:outline-none"
                 />
@@ -291,7 +300,7 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
                 </button>
               </div>
               <span className="text-sm text-muted-foreground">
-                Còn {product.quantity || 0} sản phẩm
+                Còn {currentQuantity} sản phẩm {selectedVariant ? `biến thể` : ''}
               </span>
             </div>
           </div>
@@ -303,11 +312,17 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
               size="lg"
               className="flex-1 border-primary text-primary hover:bg-primary/5 bg-transparent"
               onClick={handleAddToCart}
+              disabled={currentQuantity === 0}
             >
               <ShoppingCart className="mr-2 h-5 w-5" />
-              Thêm Vào Giỏ
+              {currentQuantity === 0 ? "Hết hàng" : "Thêm Vào Giỏ"}
             </Button>
-            <Button size="lg" className="flex-1 bg-primary hover:bg-primary/90" onClick={handleBuyNow}>
+            <Button 
+                size="lg" 
+                className="flex-1 bg-primary hover:bg-primary/90" 
+                onClick={handleBuyNow}
+                disabled={currentQuantity === 0}
+            >
               Mua Ngay
             </Button>
           </div>
@@ -347,7 +362,7 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
                     setInWishlist(true)
                   }
                 } catch (error) {
-                  // Error already handled in hook
+                  // Error handled
                 }
               }}
             >
@@ -358,58 +373,6 @@ export function ProductDetail({ product, sellerId, sellerName, variants, onProdu
               <Share2 className="mr-2 h-4 w-4" />
               Chia Sẻ
             </Button>
-          </div>
-
-          {/* Shipping Info */}
-          <div className="mt-6 space-y-3 border-t pt-6">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-foreground">Miễn phí vận chuyển</p>
-                <p className="text-sm text-muted-foreground">Cho đơn hàng từ 50.000₫</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-foreground">Đảm bảo chính hãng</p>
-                <p className="text-sm text-muted-foreground">100% sản phẩm chính hãng</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <svg className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-              </div>
-              <div>
-                <p className="font-medium text-foreground">Đổi trả trong 7 ngày</p>
-                <p className="text-sm text-muted-foreground">Nếu sản phẩm lỗi</p>
-              </div>
-            </div>
           </div>
         </div>
       </div>

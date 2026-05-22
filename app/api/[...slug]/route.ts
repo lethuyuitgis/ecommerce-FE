@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import FormData from 'form-data'
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
+const BACKEND_URL = (typeof process !== 'undefined' && process.env.INTERNAL_API_URL) || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
 
 // Handle OPTIONS requests for CORS preflight
 export async function OPTIONS() {
